@@ -1,0 +1,4 @@
+option('rinicu_sdk_include', type: 'string', value: '',
+       description: 'RinOS-SDK include directory')
+option('rinicu_enable_autostart', type: 'boolean', value: false,
+       description: 'Call the RinOS SDK service-manager wrapper before connect')

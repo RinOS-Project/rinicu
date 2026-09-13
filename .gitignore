@@ -53,3 +53,6 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# Meson keeps this build definition in a .txt file.
+!meson_options.txt
