@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <stdint.h>
 
-#include <rin/icu_service_abi.h>
+#include <rin/icu/service_abi.h>
 #include <rinicu/data_blob.h>
 #include <rinicu/tzdb_blob.h>
 #include <rinicu/rinicu.h>

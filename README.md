@@ -13,7 +13,7 @@ Include the public API with:
 The public protocol ABI is supplied by RinOS-SDK:
 
 ```c
-#include <rin/icu_service_abi.h>
+#include <rin/icu/service_abi.h>
 ```
 
 Build with CMake or Meson. A standalone build needs a POSIX socket toolchain

@@ -1,7 +1,7 @@
 # RinICU wire protocol v2
 
 The wire protocol is a fixed-layout, little-endian protocol. All integer
-fields use the exact-width types in `rin/icu_service_abi.h`; the records are
+fields use the exact-width types in `rin/icu/service_abi.h`; the records are
 packed and have compile-time size/offset assertions. `value_bits` fields carry
 IEEE-754 binary64 representations. A big-endian implementation must add an
 encode/decode layer before it can speak v2.

@@ -6,8 +6,8 @@ sdk_inc = get_option('rinicu_sdk_include')
 if sdk_inc == ''
   sdk_inc = meson.current_source_dir() / '../../RinOS-SDK/include'
 endif
-if not fs.exists(sdk_inc / 'rin/icu_service_abi.h')
-  error('RinICU requires RinOS-SDK/include/rin/icu_service_abi.h')
+if not fs.exists(sdk_inc / 'rin/icu/service_abi.h')
+  error('RinICU requires RinOS-SDK/include/rin/icu/service_abi.h')
 endif
 if host_machine.system() == 'windows'
   error('RinICU local-socket transport requires a POSIX/RinOS socket ABI')

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 #include <assert.h>
 
-#include <rin/icu_service_abi.h>
+#include <rin/icu/service_abi.h>
 
 int main(void)
 {

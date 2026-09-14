@@ -12,9 +12,9 @@ if(NOT RINICU_SDK_INCLUDE_DIR)
     set(RINICU_SDK_INCLUDE_DIR
         "${CMAKE_CURRENT_SOURCE_DIR}/../../RinOS-SDK/include")
 endif()
-if(NOT EXISTS "${RINICU_SDK_INCLUDE_DIR}/rin/icu_service_abi.h")
+if(NOT EXISTS "${RINICU_SDK_INCLUDE_DIR}/rin/icu/service_abi.h")
     message(FATAL_ERROR
-            "RinICU requires RinOS-SDK/include/rin/icu_service_abi.h")
+            "RinICU requires RinOS-SDK/include/rin/icu/service_abi.h")
 endif()
 if(WIN32)
     message(FATAL_ERROR
