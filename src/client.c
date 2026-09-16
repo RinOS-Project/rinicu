@@ -283,6 +283,8 @@ static int rin_icu_response_payload_valid(uint32_t command,
     case RIN_ICU_CMD_TIME_ZONE_OFFSET_V1:
         return payload_len == sizeof(RinIcuTimeZoneOffsetResponse) && payload &&
                ((const RinIcuTimeZoneOffsetResponse*)payload)->in_dst <= 1u;
+    case RIN_ICU_CMD_TIME_ZONE_TRANSITION_V1:
+        return payload_len == sizeof(RinIcuTimeZoneTransitionResponse) && payload;
     case RIN_ICU_CMD_COLLATOR_CREATE_V1:
     case RIN_ICU_CMD_SEGMENTER_CREATE_V1:
     case RIN_ICU_CMD_NUMBER_FORMATTER_CREATE_V1:
@@ -1500,6 +1502,17 @@ int rin_icu_time_zone_available(rin_icu_client_t* client, char* dest, size_t des
     return rin_icu_call_text_no_payload(client, RIN_ICU_CMD_TIME_ZONE_AVAILABLE_V1, dest, dest_cap, out_len);
 }
 
+int rin_icu_time_zone_available_in_region(rin_icu_client_t* client,
+                                          const char* region,
+                                          char* dest,
+                                          size_t dest_cap,
+                                          size_t* out_len)
+{
+    return rin_icu_call_text_input(client, 0u,
+                                   RIN_ICU_CMD_TIME_ZONE_AVAILABLE_REGION_V1,
+                                   region ? region : "", dest, dest_cap, out_len);
+}
+
 int rin_icu_time_zone_offset(rin_icu_client_t* client,
                              const char* time_zone,
                              int64_t epoch_ms,
@@ -1546,6 +1559,59 @@ int rin_icu_time_zone_offset(rin_icu_client_t* client,
             }
             if (out_in_dst) {
                 *out_in_dst = offset_response->in_dst ? 1 : 0;
+            }
+        }
+    }
+    free(payload);
+    return status;
+}
+
+int rin_icu_time_zone_transition(rin_icu_client_t* client,
+                                 const char* time_zone,
+                                 int64_t epoch_ms,
+                                 uint32_t direction,
+                                 uint32_t include_given_time,
+                                 uint32_t transition_rule,
+                                 int64_t* out_transition_epoch_ms)
+{
+    RinIcuTimeZoneTransitionRequest request;
+    RinIcuMsgHeader response;
+    unsigned char* payload = NULL;
+    size_t time_zone_len = rin_icu_strlen_c(time_zone);
+    uint32_t payload_len;
+    unsigned char* request_payload;
+    int status;
+    if (rin_icu_payload_size2(sizeof(request), time_zone_len, &payload_len) !=
+        RIN_ICU_STATUS_OK) return RIN_ICU_STATUS_TOO_LARGE;
+    request_payload = (unsigned char*)malloc((size_t)payload_len);
+    if (!request_payload) return RIN_ICU_STATUS_IO_ERROR;
+    memset(&request, 0, sizeof(request));
+    request.time_zone_len = (uint32_t)time_zone_len;
+    request.epoch_ms = epoch_ms;
+    request.direction = direction;
+    request.include_given_time = include_given_time;
+    request.transition_rule = transition_rule;
+    memcpy(request_payload, &request, sizeof(request));
+    if (time_zone_len > 0u) {
+        memcpy(request_payload + sizeof(request), time_zone ? time_zone : "", time_zone_len);
+    }
+    status = rin_icu_client_call(client,
+                                 RIN_ICU_CMD_TIME_ZONE_TRANSITION_V1,
+                                 0u,
+                                 0u,
+                                 request_payload,
+                                 payload_len,
+                                 &response,
+                                 &payload);
+    free(request_payload);
+    if (status == RIN_ICU_STATUS_OK) {
+        RinIcuTimeZoneTransitionResponse const* transition_response;
+        if (!payload || response.payload_len != sizeof(RinIcuTimeZoneTransitionResponse)) {
+            status = RIN_ICU_STATUS_DATA_ERROR;
+        } else {
+            transition_response = (RinIcuTimeZoneTransitionResponse const*)payload;
+            if (out_transition_epoch_ms) {
+                *out_transition_epoch_ms = transition_response->transition_epoch_ms;
             }
         }
     }
