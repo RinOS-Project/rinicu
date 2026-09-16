@@ -16,6 +16,12 @@ extern "C" {
 #define RIN_ICU_CLIENT_STORAGE_SIZE \
     (sizeof(uintptr_t) * RIN_ICU_CLIENT_STORAGE_WORDS)
 
+/* Maximum bytes inspected by APIs that accept a NUL-terminated caller
+ * string.  The transport still applies the smaller per-request payload
+ * limit after the scan; this bound prevents an unterminated pointer from
+ * becoming an unbounded memory walk before that validation. */
+#define RIN_ICU_MAX_CSTRING_BYTES (64u * 1024u)
+
 /* Caller-owned storage for the connection-scoped client.  The contents are
  * private and may change between library releases; applications must use the
  * lifecycle functions below and must not inspect this storage. */

@@ -26,6 +26,7 @@ int main(void)
     assert(sizeof(RinIcuTzdbZoneMetaV1) == 16u);
     assert(sizeof(RinIcuTzdbV2Footer) == 32u);
     assert(sizeof(client) == RIN_ICU_CLIENT_STORAGE_SIZE);
+    assert(RIN_ICU_MAX_CSTRING_BYTES == 65536u);
 
     assert(RIN_ICU_MAGIC == UINT32_C(0x52495631));
     assert(RIN_ICU_VERSION == 2u);

@@ -11,6 +11,7 @@ int main(void)
 {
     rin_icu_client_t client;
     rin_icu_client_internal_t* internal;
+    static char oversized[RIN_ICU_MAX_CSTRING_BYTES + 1u];
     unsigned char text_payload[sizeof(RinIcuBytesResponse) + 3u];
     unsigned char bulk_payload[sizeof(RinIcuBytesResponse) +
                                sizeof(RinIcuBulkBytesResponse) +
@@ -21,6 +22,11 @@ int main(void)
 
     memset(&client, 0, sizeof(client));
     rin_icu_client_init(&client);
+    memset(oversized, 'x', sizeof(oversized));
+    assert(rin_icu_strlen_c(NULL) == 0u);
+    assert(rin_icu_strlen_c("") == 0u);
+    assert(rin_icu_strlen_c("abc") == 3u);
+    assert(rin_icu_strlen_c(oversized) == RIN_ICU_MAX_CSTRING_BYTES + 1u);
     internal = rin_icu_client_internal(&client);
     internal->next_request_id = UINT32_MAX;
     assert(rin_icu_next_request_id(internal) == UINT32_MAX);

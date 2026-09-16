@@ -57,9 +57,10 @@ static size_t rin_icu_strlen_c(const char* s)
     if (!s) {
         return 0u;
     }
-    while (s[len] != '\0') {
+    while (len < RIN_ICU_MAX_CSTRING_BYTES && s[len] != '\0') {
         ++len;
     }
+    if (len == RIN_ICU_MAX_CSTRING_BYTES) return len + 1u;
     return len;
 }
 
