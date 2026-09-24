@@ -876,17 +876,22 @@ int rin_icu_collator_compare(rin_icu_client_t* client,
     RinIcuCompareRequest request;
     RinIcuMsgHeader response;
     unsigned char* payload = NULL;
-    size_t lhs_len = rin_icu_strlen_c(lhs);
-    size_t rhs_len = rin_icu_strlen_c(rhs);
+    size_t lhs_len;
+    size_t rhs_len;
     uint32_t payload_len;
     unsigned char* request_payload;
     int status;
+    if (!client || !lhs || !rhs || !out_result) {
+        return RIN_ICU_STATUS_INVALID;
+    }
+    lhs_len = rin_icu_strlen_c(lhs);
+    rhs_len = rin_icu_strlen_c(rhs);
     if (rin_icu_payload_size3(sizeof(request), lhs_len, rhs_len,
                               &payload_len) != RIN_ICU_STATUS_OK) {
         return RIN_ICU_STATUS_TOO_LARGE;
     }
     request_payload = (unsigned char*)malloc((size_t)payload_len);
-    if (!request_payload || !out_result) {
+    if (!request_payload) {
         free(request_payload);
         return RIN_ICU_STATUS_INVALID;
     }
