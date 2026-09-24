@@ -64,6 +64,17 @@ static size_t rin_icu_strlen_c(const char* s)
     return len;
 }
 
+static int rin_icu_cstring_array_valid(const char* const* values, size_t count)
+{
+    size_t index;
+    if (count == 0u) return 1;
+    if (!values) return 0;
+    for (index = 0u; index < count; ++index) {
+        if (!values[index]) return 0;
+    }
+    return 1;
+}
+
 static int rin_icu_connect_once(void)
 {
     struct sockaddr_un addr;
@@ -956,9 +967,11 @@ int rin_icu_collator_sort_keys_bulk(rin_icu_client_t* client,
     uint32_t payload_len;
     unsigned char* request_payload;
 
-    if (input_count > RIN_ICU_MAX_BULK_ITEMS ||
-        (input_count > 0u && !inputs)) {
+    if (input_count > RIN_ICU_MAX_BULK_ITEMS) {
         return RIN_ICU_STATUS_TOO_LARGE;
+    }
+    if (!rin_icu_cstring_array_valid(inputs, input_count)) {
+        return RIN_ICU_STATUS_INVALID;
     }
 
     if (rin_icu_mul_size(input_count, sizeof(uint32_t), &lengths_bytes) !=
@@ -1404,8 +1417,8 @@ int rin_icu_list_format(rin_icu_client_t* client,
     unsigned char* payload;
     int status;
 
-    if (item_count > RIN_ICU_MAX_BULK_ITEMS ||
-        (item_count > 0u && !items)) return RIN_ICU_STATUS_INVALID;
+    if (item_count > RIN_ICU_MAX_BULK_ITEMS) return RIN_ICU_STATUS_TOO_LARGE;
+    if (!rin_icu_cstring_array_valid(items, item_count)) return RIN_ICU_STATUS_INVALID;
     if (rin_icu_mul_size(item_count, sizeof(uint32_t), &lengths_bytes) !=
         RIN_ICU_STATUS_OK) return RIN_ICU_STATUS_TOO_LARGE;
     for (i = 0u; i < item_count; ++i) {
