@@ -16,6 +16,7 @@ int main(void)
     assert(sizeof(RinIcuCollatorOptions) == 16u);
     assert(sizeof(RinIcuSegmenterOptions) == 16u);
     assert(sizeof(RinIcuNumberFormatterOptions) == 24u);
+    assert(sizeof(RinIcuNumberFormatterOptionsV2) == 60u);
     assert(sizeof(RinIcuDateTimeFormatterOptions) == 16u);
     assert(sizeof(RinIcuPluralRulesOptions) == 8u);
     assert(sizeof(RinIcuDataHeader) == 24u);
@@ -32,6 +33,7 @@ int main(void)
     assert(RIN_ICU_VERSION == 2u);
     assert(RIN_ICU_MAX_INLINE_PAYLOAD == 65536u);
     assert(RIN_ICU_MAX_BULK_ITEMS == 4096u);
+    assert(RIN_ICU_NUMBER_UNIT_MAX == 32u);
     assert(offsetof(RinIcuMsgHeader, request_id) == 16u);
     assert(offsetof(RinIcuMsgHeader, payload_len) == 24u);
 

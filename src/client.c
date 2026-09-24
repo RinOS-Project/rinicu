@@ -192,6 +192,7 @@ static int rin_icu_command_is_create(uint32_t command)
     return command == RIN_ICU_CMD_COLLATOR_CREATE_V1 ||
            command == RIN_ICU_CMD_SEGMENTER_CREATE_V1 ||
            command == RIN_ICU_CMD_NUMBER_FORMATTER_CREATE_V1 ||
+           command == RIN_ICU_CMD_NUMBER_FORMATTER_CREATE_V2 ||
            command == RIN_ICU_CMD_DATETIME_FORMATTER_CREATE_V1 ||
            command == RIN_ICU_CMD_PLURAL_RULES_CREATE_V1;
 }
@@ -300,6 +301,7 @@ static int rin_icu_response_payload_valid(uint32_t command,
     case RIN_ICU_CMD_COLLATOR_CREATE_V1:
     case RIN_ICU_CMD_SEGMENTER_CREATE_V1:
     case RIN_ICU_CMD_NUMBER_FORMATTER_CREATE_V1:
+    case RIN_ICU_CMD_NUMBER_FORMATTER_CREATE_V2:
     case RIN_ICU_CMD_DATETIME_FORMATTER_CREATE_V1:
     case RIN_ICU_CMD_PLURAL_RULES_CREATE_V1:
     case RIN_ICU_CMD_DESTROY_HANDLE_V1:
@@ -1178,6 +1180,56 @@ int rin_icu_number_formatter_create(rin_icu_client_t* client,
     }
     status = rin_icu_client_call(client,
                                  RIN_ICU_CMD_NUMBER_FORMATTER_CREATE_V1,
+                                 0u,
+                                 0u,
+                                 request_payload,
+                                 payload_len,
+                                 &response,
+                                 &payload);
+    free(request_payload);
+    free(payload);
+    if (status == RIN_ICU_STATUS_OK) {
+        *out_handle = response.handle_id;
+    }
+    return status;
+}
+
+int rin_icu_number_formatter_create_v2(rin_icu_client_t* client,
+                                       const char* locale,
+                                       const rin_icu_number_formatter_options_v2_t* options,
+                                       rin_icu_handle_t* out_handle)
+{
+    RinIcuNumberFormatterCreateRequestV2 request;
+    RinIcuMsgHeader response;
+    unsigned char* payload = NULL;
+    size_t locale_len = rin_icu_strlen_c(locale);
+    uint32_t payload_len;
+    unsigned char* request_payload;
+    int status;
+    if (rin_icu_payload_size2(sizeof(request), locale_len, &payload_len) !=
+        RIN_ICU_STATUS_OK) return RIN_ICU_STATUS_TOO_LARGE;
+    request_payload = (unsigned char*)malloc((size_t)payload_len);
+    if (!request_payload || !out_handle) {
+        free(request_payload);
+        return RIN_ICU_STATUS_INVALID;
+    }
+    memset(&request, 0, sizeof(request));
+    request.locale_len = (uint32_t)locale_len;
+    if (options) {
+        request.options = *options;
+    } else {
+        request.options.base.style = RIN_ICU_NUMBER_STYLE_DECIMAL;
+        request.options.base.use_grouping = 1u;
+        request.options.base.min_fraction_digits = -1;
+        request.options.base.max_fraction_digits = -1;
+        request.options.unit_display = RIN_ICU_STYLE_SHORT;
+    }
+    memcpy(request_payload, &request, sizeof(request));
+    if (locale_len > 0u) {
+        memcpy(request_payload + sizeof(request), locale, locale_len);
+    }
+    status = rin_icu_client_call(client,
+                                 RIN_ICU_CMD_NUMBER_FORMATTER_CREATE_V2,
                                  0u,
                                  0u,
                                  request_payload,

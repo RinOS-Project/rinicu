@@ -33,6 +33,7 @@ typedef uint32_t rin_icu_handle_t;
 typedef RinIcuCollatorOptions rin_icu_collator_options_t;
 typedef RinIcuSegmenterOptions rin_icu_segmenter_options_t;
 typedef RinIcuNumberFormatterOptions rin_icu_number_formatter_options_t;
+typedef RinIcuNumberFormatterOptionsV2 rin_icu_number_formatter_options_v2_t;
 typedef RinIcuDateTimeFormatterOptions rin_icu_datetime_formatter_options_t;
 typedef RinIcuPluralRulesOptions rin_icu_plural_rules_options_t;
 typedef RinIcuSegmentNextResponse rin_icu_segment_t;
@@ -64,6 +65,7 @@ int rin_icu_segmenter_next(rin_icu_client_t* client, rin_icu_handle_t handle, ri
 int rin_icu_segmenter_destroy(rin_icu_client_t* client, rin_icu_handle_t handle);
 
 int rin_icu_number_formatter_create(rin_icu_client_t* client, const char* locale, const rin_icu_number_formatter_options_t* options, rin_icu_handle_t* out_handle);
+int rin_icu_number_formatter_create_v2(rin_icu_client_t* client, const char* locale, const rin_icu_number_formatter_options_v2_t* options, rin_icu_handle_t* out_handle);
 int rin_icu_number_formatter_format(rin_icu_client_t* client, rin_icu_handle_t handle, double value, char* dest, size_t dest_cap, size_t* out_len);
 int rin_icu_number_formatter_destroy(rin_icu_client_t* client, rin_icu_handle_t handle);
 
