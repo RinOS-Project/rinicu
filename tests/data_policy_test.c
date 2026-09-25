@@ -23,6 +23,7 @@ static void make_locale(RinIcuDataLocaleRecord* record)
     strcpy(record->percent_pattern, "{value}{percent}");
     strcpy(record->currency_pattern, "{symbol}{value}");
     strcpy(record->date_pattern, "MM/DD/YYYY");
+    strcpy(record->long_date_pattern, "MMMM DD, YYYY");
     strcpy(record->time_pattern, "hh:mm A");
     strcpy(record->datetime_pattern, "{date} {time}");
     record->cardinal_rule = RIN_ICU_PLURAL_RULE_ONE;

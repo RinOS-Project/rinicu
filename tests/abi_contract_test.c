@@ -20,7 +20,7 @@ int main(void)
     assert(sizeof(RinIcuDateTimeFormatterOptions) == 16u);
     assert(sizeof(RinIcuPluralRulesOptions) == 8u);
     assert(sizeof(RinIcuDataHeader) == 24u);
-    assert(sizeof(RinIcuDataLocaleRecord) == 348u);
+    assert(sizeof(RinIcuDataLocaleRecord) == 380u);
     assert(sizeof(RinIcuTzdbHeader) == 24u);
     assert(sizeof(RinIcuTzdbZoneRecord) == 104u);
     assert(sizeof(RinIcuTzdbTransitionV1) == 32u);

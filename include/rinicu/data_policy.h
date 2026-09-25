@@ -106,6 +106,8 @@ static inline int rin_icu_data_locale_valid(
                                        sizeof(record->currency_pattern), 0) ||
         !rin_icu_data_bytes_terminated(record->date_pattern,
                                        sizeof(record->date_pattern), 0) ||
+        !rin_icu_data_bytes_terminated(record->long_date_pattern,
+                                       sizeof(record->long_date_pattern), 0) ||
         !rin_icu_data_bytes_terminated(record->time_pattern,
                                        sizeof(record->time_pattern), 0) ||
         !rin_icu_data_bytes_terminated(record->datetime_pattern,
