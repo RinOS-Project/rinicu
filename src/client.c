@@ -35,9 +35,12 @@ static void rin_icu_sleep_ms(unsigned milliseconds)
     _RIN_UNISTD_SLEEP(milliseconds);
 #else
     struct timespec request;
+    unsigned interrupted = 0u;
     request.tv_sec = (time_t)(milliseconds / 1000u);
     request.tv_nsec = (long)((milliseconds % 1000u) * 1000000u);
-    while (nanosleep(&request, &request) < 0 && errno == EINTR) {
+    for (;;) {
+        if (nanosleep(&request, &request) == 0) break;
+        if (errno != EINTR || ++interrupted > RIN_ICU_MAX_IO_EINTR) break;
     }
 #endif
 }
