@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: MIT */
 #include "client_internal.h"
+#include "service_identity.h"
 
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <rin/socket_abi.h>
 #if RIN_ICU_ENABLE_AUTOSTART
 #include <time.h>
 #endif
@@ -78,6 +80,8 @@ static int rin_icu_cstring_array_valid(const char* const* values, size_t count)
 static int rin_icu_connect_once(void)
 {
     struct sockaddr_un addr;
+    rin_unix_service_identity_v1 identity;
+    socklen_t identity_size = (socklen_t)sizeof(identity);
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0) {
         return -1;
@@ -87,7 +91,12 @@ static int rin_icu_connect_once(void)
     addr.sun_family = AF_UNIX;
     strncpy(addr.sun_path, RIN_ICU_SOCKET_PATH, sizeof(addr.sun_path) - 1u);
 
-    if (connect(fd, (const struct sockaddr*)&addr, (socklen_t)sizeof(addr)) == 0) {
+    memset(&identity, 0, sizeof(identity));
+    if (connect(fd, (const struct sockaddr*)&addr, (socklen_t)sizeof(addr)) == 0 &&
+        getsockopt(fd, SOL_SOCKET, SO_RIN_UNIX_SERVICE_IDENTITY,
+                   &identity, &identity_size) == 0 &&
+        identity_size == (socklen_t)sizeof(identity) &&
+        rin_icu_service_identity_valid(&identity)) {
         return fd;
     }
 
