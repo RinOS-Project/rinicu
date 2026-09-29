@@ -58,10 +58,10 @@ int main(void)
     locale.reserved0 = 1u;
     assert(!rin_icu_data_locale_valid(&locale));
     make_locale(&locale);
-    locale.cardinal_rule = RIN_ICU_PLURAL_RULE_ARABIC;
+    locale.cardinal_rule = RIN_ICU_PLURAL_RULE_FINNISH;
     assert(rin_icu_data_locale_valid(&locale));
     make_locale(&locale);
-    locale.cardinal_rule = RIN_ICU_PLURAL_RULE_ARABIC + 1u;
+    locale.cardinal_rule = RIN_ICU_PLURAL_RULE_FINNISH + 1u;
     assert(!rin_icu_data_locale_valid(&locale));
     make_locale(&locale);
     locale.currency_digits = 4u;
