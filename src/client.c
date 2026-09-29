@@ -17,6 +17,10 @@
 #define RIN_ICU_ENABLE_AUTOSTART 0
 #endif
 
+enum {
+    RIN_ICU_MAX_IO_EINTR = 32u,
+};
+
 #if RIN_ICU_ENABLE_AUTOSTART
 #include <rin/service.h>
 #endif
@@ -325,12 +329,18 @@ static int rin_icu_send_all(int fd, const void* data, size_t len)
 {
     const unsigned char* ptr = (const unsigned char*)data;
     size_t sent = 0u;
+    unsigned interrupted = 0u;
     while (sent < len) {
-        ssize_t rc = send(fd, ptr + sent, len - sent, 0);
+        ssize_t rc = send(fd, ptr + sent, len - sent, MSG_NOSIGNAL);
+        if (rc < 0 && errno == EINTR) {
+            if (++interrupted > RIN_ICU_MAX_IO_EINTR) return -1;
+            continue;
+        }
         if (rc <= 0) {
             return -1;
         }
         sent += (size_t)rc;
+        interrupted = 0u;
     }
     return 0;
 }
@@ -339,12 +349,18 @@ static int rin_icu_recv_all(int fd, void* data, size_t len)
 {
     unsigned char* ptr = (unsigned char*)data;
     size_t received = 0u;
+    unsigned interrupted = 0u;
     while (received < len) {
         ssize_t rc = recv(fd, ptr + received, len - received, 0);
+        if (rc < 0 && errno == EINTR) {
+            if (++interrupted > RIN_ICU_MAX_IO_EINTR) return -1;
+            continue;
+        }
         if (rc <= 0) {
             return -1;
         }
         received += (size_t)rc;
+        interrupted = 0u;
     }
     return 0;
 }
