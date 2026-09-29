@@ -112,7 +112,7 @@ static inline int rin_icu_data_locale_valid(
                                        sizeof(record->time_pattern), 0) ||
         !rin_icu_data_bytes_terminated(record->datetime_pattern,
                                        sizeof(record->datetime_pattern), 0) ||
-        record->cardinal_rule > RIN_ICU_PLURAL_RULE_ENGLISH_ORDINAL ||
+        record->cardinal_rule > RIN_ICU_PLURAL_RULE_ARABIC ||
         record->ordinal_rule > RIN_ICU_PLURAL_RULE_ENGLISH_ORDINAL ||
         record->currency_digits > 3u ||
         (record->flags & ~RIN_ICU_DATA_FLAG_DEFAULT_H12) != 0u ||
