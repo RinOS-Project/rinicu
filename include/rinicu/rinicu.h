@@ -86,6 +86,7 @@ int rin_icu_time_zone_canonicalize(rin_icu_client_t* client, const char* time_zo
 int rin_icu_time_zone_available(rin_icu_client_t* client, char* dest, size_t dest_cap, size_t* out_len);
 int rin_icu_time_zone_available_in_region(rin_icu_client_t* client, const char* region, char* dest, size_t dest_cap, size_t* out_len);
 int rin_icu_time_zone_offset(rin_icu_client_t* client, const char* time_zone, int64_t epoch_ms, int* out_offset_minutes, int* out_in_dst);
+int rin_icu_time_zone_local_offsets(rin_icu_client_t* client, const char* time_zone, int64_t local_epoch_ms, int* out_offset_minutes, int* out_in_dst, size_t out_capacity, size_t* out_count);
 int rin_icu_time_zone_transition(rin_icu_client_t* client, const char* time_zone, int64_t epoch_ms, uint32_t direction, uint32_t include_given_time, uint32_t transition_rule, int64_t* out_transition_epoch_ms);
 #ifdef __cplusplus
 }

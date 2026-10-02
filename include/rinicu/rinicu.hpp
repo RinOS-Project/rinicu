@@ -516,6 +516,16 @@ inline int time_zone_offset(Client& client, std::string const& time_zone, long l
                                     &offset_minutes, &in_dst);
 }
 
+inline int time_zone_local_offsets(Client& client, std::string const& time_zone,
+                                   long long local_epoch_ms, int* offset_minutes,
+                                   int* in_dst, size_t out_capacity,
+                                   size_t& out_count)
+{
+    return rin_icu_time_zone_local_offsets(client.raw(), time_zone.c_str(),
+                                           local_epoch_ms, offset_minutes,
+                                           in_dst, out_capacity, &out_count);
+}
+
 }
 
 #endif

@@ -1665,6 +1665,71 @@ int rin_icu_time_zone_offset(rin_icu_client_t* client,
     return status;
 }
 
+int rin_icu_time_zone_local_offsets(rin_icu_client_t* client,
+                                    const char* time_zone,
+                                    int64_t local_epoch_ms,
+                                    int* out_offset_minutes,
+                                    int* out_in_dst,
+                                    size_t out_capacity,
+                                    size_t* out_count)
+{
+    RinIcuTimeZoneLocalOffsetsRequest request;
+    RinIcuMsgHeader response;
+    unsigned char* payload = NULL;
+    size_t time_zone_len = rin_icu_strlen_c(time_zone);
+    uint32_t payload_len;
+    unsigned char* request_payload;
+    int status;
+    if (out_count) *out_count = 0u;
+    if (rin_icu_payload_size2(sizeof(request), time_zone_len, &payload_len) !=
+        RIN_ICU_STATUS_OK) return RIN_ICU_STATUS_TOO_LARGE;
+    request_payload = (unsigned char*)malloc((size_t)payload_len);
+    if (!request_payload) return RIN_ICU_STATUS_IO_ERROR;
+    memset(&request, 0, sizeof(request));
+    request.time_zone_len = (uint32_t)time_zone_len;
+    request.local_epoch_ms = local_epoch_ms;
+    memcpy(request_payload, &request, sizeof(request));
+    if (time_zone_len > 0u) {
+        memcpy(request_payload + sizeof(request), time_zone ? time_zone : "", time_zone_len);
+    }
+    status = rin_icu_client_call(client,
+                                 RIN_ICU_CMD_TIME_ZONE_LOCAL_OFFSETS_V1,
+                                 0u,
+                                 0u,
+                                 request_payload,
+                                 payload_len,
+                                 &response,
+                                 &payload);
+    free(request_payload);
+    if (status == RIN_ICU_STATUS_OK) {
+        RinIcuTimeZoneLocalOffsetsResponse const* offsets_response;
+        if (!payload || response.payload_len != sizeof(RinIcuTimeZoneLocalOffsetsResponse)) {
+            status = RIN_ICU_STATUS_DATA_ERROR;
+        } else {
+            offsets_response = (RinIcuTimeZoneLocalOffsetsResponse const*)payload;
+            if (offsets_response->count > RIN_ICU_TIME_ZONE_LOCAL_OFFSET_MAX) {
+                status = RIN_ICU_STATUS_DATA_ERROR;
+            } else if (offsets_response->count > out_capacity) {
+                if (out_count) *out_count = offsets_response->count;
+                status = RIN_ICU_STATUS_NO_SPACE;
+            } else {
+                size_t index;
+                if (out_count) *out_count = offsets_response->count;
+                for (index = 0u; index < offsets_response->count; ++index) {
+                    if (out_offset_minutes) {
+                        out_offset_minutes[index] = offsets_response->offsets[index].offset_minutes;
+                    }
+                    if (out_in_dst) {
+                        out_in_dst[index] = offsets_response->offsets[index].in_dst ? 1 : 0;
+                    }
+                }
+            }
+        }
+    }
+    free(payload);
+    return status;
+}
+
 int rin_icu_time_zone_transition(rin_icu_client_t* client,
                                  const char* time_zone,
                                  int64_t epoch_ms,
