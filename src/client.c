@@ -478,6 +478,17 @@ static int rin_icu_client_call(rin_icu_client_t* client,
     return response.status;
 }
 
+static void rin_icu_clear_copy_output(void* output, size_t capacity,
+                                      size_t* out_len)
+{
+    volatile unsigned char* bytes = (volatile unsigned char*)output;
+    if (out_len != NULL) *out_len = 0u;
+    while (bytes != NULL && capacity != 0u) {
+        *bytes++ = 0u;
+        --capacity;
+    }
+}
+
 static int rin_icu_copy_text_response(const unsigned char* payload,
                                       uint32_t payload_len,
                                       char* dest,
@@ -486,6 +497,7 @@ static int rin_icu_copy_text_response(const unsigned char* payload,
 {
     const RinIcuBytesResponse* response = (const RinIcuBytesResponse*)payload;
     size_t data_len;
+    rin_icu_clear_copy_output(dest, dest_cap, out_len);
     if (!rin_icu_bytes_response_shape(payload, payload_len)) {
         return RIN_ICU_STATUS_DATA_ERROR;
     }
@@ -514,6 +526,7 @@ static int rin_icu_copy_bytes_response(const unsigned char* payload,
 {
     const RinIcuBytesResponse* response = (const RinIcuBytesResponse*)payload;
     size_t data_len;
+    rin_icu_clear_copy_output(dest, dest_cap, out_len);
     if (!rin_icu_bytes_response_shape(payload, payload_len)) {
         return RIN_ICU_STATUS_DATA_ERROR;
     }

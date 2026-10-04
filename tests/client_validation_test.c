@@ -19,6 +19,9 @@ int main(void)
     RinIcuBytesResponse outer;
     RinIcuBulkBytesResponse inner;
     RinIcuCompareResponse compare;
+    char text_output[8];
+    uint8_t byte_output[8];
+    size_t output_length = SIZE_MAX;
 
     memset(&client, 0, sizeof(client));
     rin_icu_client_init(&client);
@@ -42,6 +45,30 @@ int main(void)
     assert(!rin_icu_response_payload_valid(RIN_ICU_CMD_LOCALE_CANONICALIZE_V1,
                                            RIN_ICU_STATUS_INVALID,
                                            text_payload, sizeof(text_payload)));
+    memset(text_output, 0xa5, sizeof(text_output));
+    assert(rin_icu_copy_text_response(text_payload, sizeof(text_payload),
+                                      text_output, 2u,
+                                      &output_length) ==
+           RIN_ICU_STATUS_NO_SPACE);
+    assert(output_length == 3u);
+    for (size_t index = 0u; index < sizeof(text_output); ++index)
+        assert(text_output[index] == 0u);
+    memset(text_output, 0xa5, sizeof(text_output));
+    assert(rin_icu_copy_text_response(text_payload, sizeof(text_payload) - 1u,
+                                      text_output, sizeof(text_output),
+                                      &output_length) ==
+           RIN_ICU_STATUS_DATA_ERROR);
+    assert(output_length == 0u);
+    for (size_t index = 0u; index < sizeof(text_output); ++index)
+        assert(text_output[index] == 0u);
+    memset(byte_output, 0xa5, sizeof(byte_output));
+    assert(rin_icu_copy_bytes_response(text_payload, sizeof(text_payload),
+                                       byte_output, 2u,
+                                       &output_length) ==
+           RIN_ICU_STATUS_NO_SPACE);
+    assert(output_length == 3u);
+    for (size_t index = 0u; index < sizeof(byte_output); ++index)
+        assert(byte_output[index] == 0u);
 
     memset(bulk_payload, 0, sizeof(bulk_payload));
     outer.data_len = (uint32_t)(sizeof(inner) + sizeof(uint32_t) + 2u);

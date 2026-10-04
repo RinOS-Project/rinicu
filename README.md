@@ -45,7 +45,7 @@ and is never reused.
 | ownership | Caller owns client storage and initializes before open; closing invalidates all connection-scoped handles. |
 | thread-safety | Use a client from one serialized owner at a time unless a specific API permits concurrent calls. |
 | limits | Protocol records and data accesses are bounded by RinOS-SDK ABI and declared blob policies. |
-| errors | RinIcuStatus reports invalid handles, missing data, transport/protocol errors, and service failures. |
+| errors | RinIcuStatus reports invalid handles, missing data, transport/protocol errors, and service failures. Text/byte response helpers clear caller output before malformed or insufficient-capacity failures; a required length may still be reported for a retry. |
 | ABI stability | Wire protocol ABI v2 is defined by RinOS-SDK; records are versioned. |
 | security | Uses local service boundary and exposes no private service implementation or admin reload authority. |
 | build | Use repository CMake or Meson and supply RinOS-SDK include paths as described above. |
