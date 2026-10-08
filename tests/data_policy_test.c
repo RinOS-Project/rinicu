@@ -35,6 +35,9 @@ int main(void)
 {
     RinIcuDataHeader data_header = {};
     RinIcuDataLocaleRecord locale;
+    RinIcuDataLocaleRecord root = {};
+    RinIcuDataLocaleRecord regional;
+    RinIcuDataLocaleRecord duplicate;
     RinIcuTzdbHeader tz_header = {};
     RinIcuTzdbZoneRecord zone = {};
     RinIcuTzdbTransitionV1 transition = {};
@@ -48,6 +51,21 @@ int main(void)
     data_header.record_size = sizeof(locale);
     assert(rin_icu_data_header_valid(&data_header, data_size));
     assert(rin_icu_data_locale_valid(&locale));
+    strcpy(root.locale_id, "root");
+    memset(&regional, 0, sizeof(regional));
+    strcpy(regional.locale_id, "en-US");
+    assert(rin_icu_data_locale_catalog_valid(
+        (RinIcuDataLocaleRecord[]){root, regional}, 2u));
+    duplicate = root;
+    strcpy(duplicate.locale_id, "ROOT");
+    assert(!rin_icu_data_locale_catalog_valid(
+        (RinIcuDataLocaleRecord[]){root, duplicate}, 2u));
+    duplicate = regional;
+    strcpy(duplicate.locale_id, "EN-us");
+    assert(rin_icu_data_locale_catalog_valid(
+        (RinIcuDataLocaleRecord[]){root, regional}, 2u));
+    assert(!rin_icu_data_locale_catalog_valid(
+        (RinIcuDataLocaleRecord[]){root, regional, duplicate}, 3u));
 
     data_header.locale_count = RIN_ICU_DATA_MAX_LOCALES + 1u;
     assert(!rin_icu_data_header_valid(&data_header, data_size));

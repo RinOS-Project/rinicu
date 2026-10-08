@@ -38,6 +38,41 @@ static inline int rin_icu_data_bytes_equal(const char* left, const char* right,
     return difference == 0u;
 }
 
+static inline int rin_icu_data_locale_id_equal(const char* left,
+                                               size_t left_capacity,
+                                               const char* right,
+                                               size_t right_capacity)
+{
+    size_t left_length = 0u;
+    size_t right_length = 0u;
+    size_t index;
+
+    if (!left || !right || left_capacity == 0u || right_capacity == 0u)
+        return 0;
+    while (left_length < left_capacity && left[left_length] != '\0')
+        ++left_length;
+    while (right_length < right_capacity && right[right_length] != '\0')
+        ++right_length;
+    if (left_length == left_capacity || right_length == right_capacity ||
+        left_length != right_length)
+        return 0;
+    for (index = 0u; index < left_length; ++index) {
+        unsigned char left_byte = (unsigned char)left[index];
+        unsigned char right_byte = (unsigned char)right[index];
+        if (left_byte >= (unsigned char)'A' &&
+            left_byte <= (unsigned char)'Z')
+            left_byte = (unsigned char)(left_byte - (unsigned char)'A' +
+                                        (unsigned char)'a');
+        if (right_byte >= (unsigned char)'A' &&
+            right_byte <= (unsigned char)'Z')
+            right_byte = (unsigned char)(right_byte - (unsigned char)'A' +
+                                         (unsigned char)'a');
+        if (left_byte != right_byte)
+            return 0;
+    }
+    return 1;
+}
+
 static inline int rin_icu_data_bytes_terminated(const char* value,
                                                 size_t capacity,
                                                 int require_nonempty)
@@ -119,6 +154,40 @@ static inline int rin_icu_data_locale_valid(
         record->reserved0 != 0u)
         return 0;
     return 1;
+}
+
+/* A valid record is not enough to build a deterministic catalog.  The
+ * service resolves locale IDs by lookup, so duplicate IDs (including ASCII
+ * case variants) would make the selected CLDR projection depend on file
+ * order.  Keep this catalog-level check next to the record-level policy so
+ * every reader can apply the same rule. */
+static inline int rin_icu_data_locale_catalog_valid(
+    const RinIcuDataLocaleRecord* records, uint32_t locale_count)
+{
+    uint32_t index;
+    uint32_t root_count = 0u;
+
+    if (!records || locale_count == 0u ||
+        locale_count > RIN_ICU_DATA_MAX_LOCALES)
+        return 0;
+    for (index = 0u; index < locale_count; ++index) {
+        uint32_t previous;
+        if (!rin_icu_data_locale_valid(&records[index]))
+            return 0;
+        if (rin_icu_data_locale_id_equal(
+                records[index].locale_id, sizeof(records[index].locale_id),
+                "root", sizeof("root")))
+            ++root_count;
+        for (previous = 0u; previous < index; ++previous) {
+            if (rin_icu_data_locale_id_equal(
+                    records[index].locale_id,
+                    sizeof(records[index].locale_id),
+                    records[previous].locale_id,
+                    sizeof(records[previous].locale_id)))
+                return 0;
+        }
+    }
+    return root_count == 1u;
 }
 
 static inline int rin_icu_tzdb_header_valid(const RinIcuTzdbHeader* header,
