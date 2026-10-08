@@ -147,9 +147,16 @@ static inline int rin_icu_data_locale_valid(
                                        sizeof(record->time_pattern), 0) ||
         !rin_icu_data_bytes_terminated(record->datetime_pattern,
                                        sizeof(record->datetime_pattern), 0) ||
-        record->cardinal_rule > RIN_ICU_PLURAL_RULE_ZERO_OR_ONE_INTEGER ||
+        record->cardinal_rule > RIN_ICU_PLURAL_RULE_ZERO_ONE_MANY_MILLION ||
+        record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_ONE ||
         (record->ordinal_rule > RIN_ICU_PLURAL_RULE_ENGLISH_ORDINAL &&
-         record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_ONE) ||
+         record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_ONE &&
+         record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_CATALAN &&
+         record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_HINDI &&
+         record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_HUNGARIAN &&
+         record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_ITALIAN &&
+         record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_SWEDISH &&
+         record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_UKRAINIAN) ||
         record->currency_digits > 3u ||
         (record->flags & ~RIN_ICU_DATA_FLAG_DEFAULT_H12) != 0u ||
         record->reserved0 != 0u)

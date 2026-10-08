@@ -79,7 +79,16 @@ int main(void)
     locale.cardinal_rule = RIN_ICU_PLURAL_RULE_FINNISH;
     assert(rin_icu_data_locale_valid(&locale));
     make_locale(&locale);
-    locale.cardinal_rule = RIN_ICU_PLURAL_RULE_ZERO_OR_ONE_INTEGER + 1u;
+    locale.cardinal_rule = RIN_ICU_PLURAL_RULE_ZERO_ONE_MANY_MILLION + 1u;
+    assert(!rin_icu_data_locale_valid(&locale));
+    make_locale(&locale);
+    locale.cardinal_rule = RIN_ICU_PLURAL_RULE_ONE_MANY_MILLION;
+    assert(rin_icu_data_locale_valid(&locale));
+    make_locale(&locale);
+    locale.ordinal_rule = RIN_ICU_PLURAL_RULE_ORDINAL_HINDI;
+    assert(rin_icu_data_locale_valid(&locale));
+    make_locale(&locale);
+    locale.cardinal_rule = RIN_ICU_PLURAL_RULE_ORDINAL_ONE;
     assert(!rin_icu_data_locale_valid(&locale));
     make_locale(&locale);
     locale.currency_digits = 4u;
