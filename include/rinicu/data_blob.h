@@ -11,6 +11,30 @@ enum {
     RIN_ICU_DATA_FLAG_DEFAULT_H12 = 1u << 0
 };
 
+/* The final word keeps the original RICUDB1 record size while carrying the
+ * CLDR supplementalData/weekData projection. */
+#define RIN_ICU_DATA_WEEK_FIRST_DAY_SHIFT 0u
+#define RIN_ICU_DATA_WEEK_FIRST_DAY_MASK UINT32_C(0x00000007)
+#define RIN_ICU_DATA_WEEK_MIN_DAYS_SHIFT 3u
+#define RIN_ICU_DATA_WEEK_MIN_DAYS_MASK UINT32_C(0x00000038)
+#define RIN_ICU_DATA_WEEKEND_START_SHIFT 6u
+#define RIN_ICU_DATA_WEEKEND_START_MASK UINT32_C(0x000001c0)
+#define RIN_ICU_DATA_WEEKEND_END_SHIFT 9u
+#define RIN_ICU_DATA_WEEKEND_END_MASK UINT32_C(0x00000e00)
+#define RIN_ICU_DATA_WEEK_DATA_MASK \
+    (RIN_ICU_DATA_WEEK_FIRST_DAY_MASK | RIN_ICU_DATA_WEEK_MIN_DAYS_MASK | \
+     RIN_ICU_DATA_WEEKEND_START_MASK | RIN_ICU_DATA_WEEKEND_END_MASK)
+
+enum {
+    RIN_ICU_DATA_WEEK_SUNDAY = 0,
+    RIN_ICU_DATA_WEEK_MONDAY = 1,
+    RIN_ICU_DATA_WEEK_TUESDAY = 2,
+    RIN_ICU_DATA_WEEK_WEDNESDAY = 3,
+    RIN_ICU_DATA_WEEK_THURSDAY = 4,
+    RIN_ICU_DATA_WEEK_FRIDAY = 5,
+    RIN_ICU_DATA_WEEK_SATURDAY = 6
+};
+
 enum {
     RIN_ICU_PLURAL_RULE_NONE = 0,
     RIN_ICU_PLURAL_RULE_ONE = 1,
@@ -77,7 +101,7 @@ typedef struct RIN_ICU_BLOB_PACKED RinIcuDataLocaleRecord {
     uint32_t ordinal_rule;
     uint32_t currency_digits;
     uint32_t flags;
-    uint32_t reserved0;
+    uint32_t week_data;
 } RinIcuDataLocaleRecord;
 
 #if defined(_MSC_VER)

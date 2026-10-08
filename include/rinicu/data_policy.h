@@ -106,6 +106,23 @@ static inline int rin_icu_data_header_valid(const RinIcuDataHeader* header,
     return expected == file_size;
 }
 
+static inline int rin_icu_data_week_data_valid(uint32_t week_data)
+{
+    uint32_t first_day = (week_data & RIN_ICU_DATA_WEEK_FIRST_DAY_MASK) >>
+                         RIN_ICU_DATA_WEEK_FIRST_DAY_SHIFT;
+    uint32_t min_days = (week_data & RIN_ICU_DATA_WEEK_MIN_DAYS_MASK) >>
+                        RIN_ICU_DATA_WEEK_MIN_DAYS_SHIFT;
+    uint32_t weekend_start =
+        (week_data & RIN_ICU_DATA_WEEKEND_START_MASK) >>
+        RIN_ICU_DATA_WEEKEND_START_SHIFT;
+    uint32_t weekend_end = (week_data & RIN_ICU_DATA_WEEKEND_END_MASK) >>
+                           RIN_ICU_DATA_WEEKEND_END_SHIFT;
+    return (week_data & ~RIN_ICU_DATA_WEEK_DATA_MASK) == 0u &&
+           first_day <= RIN_ICU_DATA_WEEK_SATURDAY && min_days >= 1u &&
+           min_days <= 7u && weekend_start <= RIN_ICU_DATA_WEEK_SATURDAY &&
+           weekend_end <= RIN_ICU_DATA_WEEK_SATURDAY;
+}
+
 static inline int rin_icu_data_locale_valid(
     const RinIcuDataLocaleRecord* record)
 {
@@ -159,7 +176,7 @@ static inline int rin_icu_data_locale_valid(
          record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_UKRAINIAN) ||
         record->currency_digits > 3u ||
         (record->flags & ~RIN_ICU_DATA_FLAG_DEFAULT_H12) != 0u ||
-        record->reserved0 != 0u)
+        !rin_icu_data_week_data_valid(record->week_data))
         return 0;
     return 1;
 }

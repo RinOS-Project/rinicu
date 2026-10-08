@@ -29,6 +29,13 @@ static void make_locale(RinIcuDataLocaleRecord* record)
     record->cardinal_rule = RIN_ICU_PLURAL_RULE_ONE;
     record->ordinal_rule = RIN_ICU_PLURAL_RULE_ENGLISH_ORDINAL;
     record->currency_digits = 2u;
+    record->week_data = (RIN_ICU_DATA_WEEK_MONDAY <<
+                         RIN_ICU_DATA_WEEK_FIRST_DAY_SHIFT) |
+                        (1u << RIN_ICU_DATA_WEEK_MIN_DAYS_SHIFT) |
+                        (RIN_ICU_DATA_WEEK_SATURDAY <<
+                         RIN_ICU_DATA_WEEKEND_START_SHIFT) |
+                        (RIN_ICU_DATA_WEEK_SUNDAY <<
+                         RIN_ICU_DATA_WEEKEND_END_SHIFT);
 }
 
 int main(void)
@@ -52,8 +59,10 @@ int main(void)
     assert(rin_icu_data_header_valid(&data_header, data_size));
     assert(rin_icu_data_locale_valid(&locale));
     strcpy(root.locale_id, "root");
+    root.week_data = locale.week_data;
     memset(&regional, 0, sizeof(regional));
     strcpy(regional.locale_id, "en-US");
+    regional.week_data = locale.week_data;
     assert(rin_icu_data_locale_catalog_valid(
         (RinIcuDataLocaleRecord[]){root, regional}, 2u));
     duplicate = root;
@@ -73,7 +82,7 @@ int main(void)
     memset(locale.locale_id, 'x', sizeof(locale.locale_id));
     assert(!rin_icu_data_locale_valid(&locale));
     make_locale(&locale);
-    locale.reserved0 = 1u;
+    locale.week_data = UINT32_MAX;
     assert(!rin_icu_data_locale_valid(&locale));
     make_locale(&locale);
     locale.cardinal_rule = RIN_ICU_PLURAL_RULE_FINNISH;
