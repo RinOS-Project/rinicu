@@ -11,3 +11,9 @@ Every fixed string field must be terminated within its field and contain no
 control byte. Plural rules, currency digits, flags, and all reserved values are
 validated before the service installs a catalog. Generated data and the API
 ABI have independent version numbers.
+
+When `flags & RIN_ICU_DATA_FLAG_GROUPING_PRESENT` is set, bits 8-14 carry
+the rightmost CLDR decimal group size and bits 16-22 carry the repeated
+secondary group size. A zero/zero pair means that the locale's standard
+decimal pattern is ungrouped. Records without the presence bit retain the
+legacy reader fallback and are accepted for backward-compatible loading.
