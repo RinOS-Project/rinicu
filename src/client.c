@@ -2,6 +2,10 @@
 #include "client_internal.h"
 #include "service_identity.h"
 
+#ifndef RIN_ICU_ENABLE_AUTOSTART
+#define RIN_ICU_ENABLE_AUTOSTART 0
+#endif
+
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,10 +16,6 @@
 #include <time.h>
 #endif
 #include <unistd.h>
-
-#ifndef RIN_ICU_ENABLE_AUTOSTART
-#define RIN_ICU_ENABLE_AUTOSTART 0
-#endif
 
 enum {
     RIN_ICU_MAX_IO_EINTR = 32u,
