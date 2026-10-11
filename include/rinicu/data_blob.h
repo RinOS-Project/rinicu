@@ -11,7 +11,10 @@ enum {
     RIN_ICU_DATA_FLAG_DEFAULT_H12 = 1u << 0,
     /* Bit 1 and the two following bytes preserve CLDR decimal grouping in
      * the fixed-size v1 record without changing the 380-byte ABI. */
-    RIN_ICU_DATA_FLAG_GROUPING_PRESENT = 1u << 1
+    RIN_ICU_DATA_FLAG_GROUPING_PRESENT = 1u << 1,
+    /* Bits 24-27 carry the CLDR standard decimal maximum fraction digits
+     * without changing the fixed-size v1 record. */
+    RIN_ICU_DATA_FLAG_DECIMAL_DIGITS_PRESENT = 1u << 2
 };
 
 #define RIN_ICU_DATA_GROUPING_PRIMARY_SHIFT 8u
@@ -22,6 +25,12 @@ enum {
     (RIN_ICU_DATA_FLAG_GROUPING_PRESENT | \
      RIN_ICU_DATA_GROUPING_PRIMARY_MASK | \
      RIN_ICU_DATA_GROUPING_SECONDARY_MASK)
+
+#define RIN_ICU_DATA_DECIMAL_DIGITS_SHIFT 24u
+#define RIN_ICU_DATA_DECIMAL_DIGITS_MASK UINT32_C(0x0f000000)
+#define RIN_ICU_DATA_DECIMAL_FLAGS_MASK \
+    (RIN_ICU_DATA_FLAG_DECIMAL_DIGITS_PRESENT | \
+     RIN_ICU_DATA_DECIMAL_DIGITS_MASK)
 
 /* The final word keeps the original RICUDB1 record size while carrying the
  * CLDR supplementalData/weekData projection. */

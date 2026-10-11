@@ -160,6 +160,24 @@ static inline uint32_t rin_icu_data_grouping_secondary(uint32_t flags)
     return secondary == 0u ? primary : secondary;
 }
 
+static inline int rin_icu_data_decimal_digits_valid(uint32_t flags)
+{
+    uint32_t digits;
+    if ((flags & RIN_ICU_DATA_FLAG_DECIMAL_DIGITS_PRESENT) == 0u)
+        return (flags & RIN_ICU_DATA_DECIMAL_FLAGS_MASK) == 0u;
+    digits = (flags & RIN_ICU_DATA_DECIMAL_DIGITS_MASK) >>
+             RIN_ICU_DATA_DECIMAL_DIGITS_SHIFT;
+    return digits <= 6u;
+}
+
+static inline uint32_t rin_icu_data_decimal_digits(uint32_t flags)
+{
+    if ((flags & RIN_ICU_DATA_FLAG_DECIMAL_DIGITS_PRESENT) == 0u)
+        return 3u;
+    return (flags & RIN_ICU_DATA_DECIMAL_DIGITS_MASK) >>
+           RIN_ICU_DATA_DECIMAL_DIGITS_SHIFT;
+}
+
 static inline int rin_icu_data_locale_valid(
     const RinIcuDataLocaleRecord* record)
 {
@@ -213,9 +231,11 @@ static inline int rin_icu_data_locale_valid(
          record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_UKRAINIAN) ||
         record->currency_digits > 3u ||
         (record->flags &
-         ~(RIN_ICU_DATA_FLAG_DEFAULT_H12 | RIN_ICU_DATA_GROUPING_FLAGS_MASK)) !=
+         ~(RIN_ICU_DATA_FLAG_DEFAULT_H12 | RIN_ICU_DATA_GROUPING_FLAGS_MASK |
+           RIN_ICU_DATA_DECIMAL_FLAGS_MASK)) !=
             0u ||
         !rin_icu_data_grouping_flags_valid(record->flags) ||
+        !rin_icu_data_decimal_digits_valid(record->flags) ||
         !rin_icu_data_week_data_valid(record->week_data))
         return 0;
     return 1;

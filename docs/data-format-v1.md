@@ -17,3 +17,10 @@ the rightmost CLDR decimal group size and bits 16-22 carry the repeated
 secondary group size. A zero/zero pair means that the locale's standard
 decimal pattern is ungrouped. Records without the presence bit retain the
 legacy reader fallback and are accepted for backward-compatible loading.
+
+When `flags & RIN_ICU_DATA_FLAG_DECIMAL_DIGITS_PRESENT` is set, bits 24-27
+carry the maximum fraction-digit count of the locale's CLDR standard decimal
+pattern. The product formatter bounds this value to six. Records without the
+presence bit retain the legacy reader fallback of three fractional digits;
+older RICUDB1 snapshots therefore remain loadable without claiming that their
+decimal precision was sourced from CLDR.
