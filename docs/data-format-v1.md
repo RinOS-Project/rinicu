@@ -5,7 +5,10 @@ RinOS-SDK. The header is 24 bytes, followed by `locale_count` fixed 380-byte
 `RinIcuDataLocaleRecord` values. Integers are little-endian. `record_size` must
 equal 380, `reserved0` must be zero, and the file length must equal the exact
 header plus record calculation. Locale count is bounded by
-`RIN_ICU_DATA_MAX_LOCALES`.
+`RIN_ICU_DATA_MAX_LOCALES` (currently 2048, which bounds the pinned CLDR 48.2
+common/main inventory of 1122 locale files while keeping malformed inputs
+bounded). The committed product projection remains a separate, smaller
+compatibility scope and is not thereby promoted to full CLDR parity.
 
 Every fixed string field must be terminated within its field and contain no
 control byte. Plural rules, currency digits, flags, and all reserved values are

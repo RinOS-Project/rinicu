@@ -7,7 +7,12 @@
 #include <rinicu/data_blob.h>
 #include <rinicu/tzdb_blob.h>
 
-#define RIN_ICU_DATA_MAX_LOCALES 512u
+/* CLDR 48.2's common/main archive currently contains 1122 locale files.
+ * Keep the binary reader bounded, but do not make the product's fixed-record
+ * format incapable of loading that official inventory as the projection is
+ * expanded.  The committed product snapshot is intentionally smaller; this
+ * is a capacity bound, not a full-CLDR compatibility claim. */
+#define RIN_ICU_DATA_MAX_LOCALES 2048u
 #define RIN_ICU_TZDB_MAX_ZONES 1024u
 #define RIN_ICU_TZDB_MAX_TRANSITIONS 262144u
 
