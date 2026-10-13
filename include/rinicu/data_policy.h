@@ -122,10 +122,29 @@ static inline int rin_icu_data_week_data_valid(uint32_t week_data)
         RIN_ICU_DATA_WEEKEND_START_SHIFT;
     uint32_t weekend_end = (week_data & RIN_ICU_DATA_WEEKEND_END_MASK) >>
                            RIN_ICU_DATA_WEEKEND_END_SHIFT;
+    uint32_t numbering_system =
+        (week_data & RIN_ICU_DATA_NUMBERING_SYSTEM_MASK) >>
+        RIN_ICU_DATA_NUMBERING_SYSTEM_SHIFT;
+    int numbering_system_present =
+        (week_data & RIN_ICU_DATA_NUMBERING_SYSTEM_PRESENT) != 0u;
     return (week_data & ~RIN_ICU_DATA_WEEK_DATA_MASK) == 0u &&
            first_day <= RIN_ICU_DATA_WEEK_SATURDAY && min_days >= 1u &&
            min_days <= 7u && weekend_start <= RIN_ICU_DATA_WEEK_SATURDAY &&
-           weekend_end <= RIN_ICU_DATA_WEEK_SATURDAY;
+           weekend_end <= RIN_ICU_DATA_WEEK_SATURDAY &&
+           ((!numbering_system_present && numbering_system == 0u) ||
+            (numbering_system_present &&
+             numbering_system <= RIN_ICU_DATA_NUMBERING_SYSTEM_MAX));
+}
+
+static inline int rin_icu_data_numbering_system_present(uint32_t week_data)
+{
+    return (week_data & RIN_ICU_DATA_NUMBERING_SYSTEM_PRESENT) != 0u;
+}
+
+static inline uint32_t rin_icu_data_numbering_system(uint32_t week_data)
+{
+    return (week_data & RIN_ICU_DATA_NUMBERING_SYSTEM_MASK) >>
+           RIN_ICU_DATA_NUMBERING_SYSTEM_SHIFT;
 }
 
 static inline int rin_icu_data_grouping_flags_valid(uint32_t flags)

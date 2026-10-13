@@ -27,3 +27,10 @@ pattern. The product formatter bounds this value to six. Records without the
 presence bit retain the legacy reader fallback of three fractional digits;
 older RICUDB1 snapshots therefore remain loadable without claiming that their
 decimal precision was sourced from CLDR.
+
+The high part of `week_data` carries a bounded CLDR default-numbering-system
+projection. `RIN_ICU_DATA_NUMBERING_SYSTEM_PRESENT` and bits 12-16 identify
+one of the 19 numeric systems listed in `data_blob.h`. A missing presence bit
+means that the reader must use its legacy script fallback. A CLDR system that
+has no RinICU digit table is not silently mapped to another system; generation
+leaves the bit absent and records the unsupported projection count.
