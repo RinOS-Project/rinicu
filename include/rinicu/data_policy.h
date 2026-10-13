@@ -243,8 +243,14 @@ static inline int rin_icu_data_locale_valid(
                                        sizeof(record->time_pattern), 0) ||
         !rin_icu_data_bytes_terminated(record->datetime_pattern,
                                        sizeof(record->datetime_pattern), 0) ||
-        record->cardinal_rule > RIN_ICU_PLURAL_RULE_ZERO_ONE_MANY_MILLION ||
+        record->cardinal_rule > RIN_ICU_PLURAL_RULE_LAG ||
         record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_ONE ||
+        record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_CATALAN ||
+        record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_HINDI ||
+        record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_HUNGARIAN ||
+        record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_ITALIAN ||
+        record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_SWEDISH ||
+        record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_UKRAINIAN ||
         (record->ordinal_rule > RIN_ICU_PLURAL_RULE_ENGLISH_ORDINAL &&
          record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_ONE &&
          record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_CATALAN &&

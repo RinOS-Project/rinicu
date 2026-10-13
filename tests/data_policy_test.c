@@ -93,6 +93,20 @@ int main(void)
     make_locale(&locale);
     locale.cardinal_rule = RIN_ICU_PLURAL_RULE_ONE_MANY_MILLION;
     assert(rin_icu_data_locale_valid(&locale));
+    for (uint32_t rule = RIN_ICU_PLURAL_RULE_ONE_TWO;
+         rule <= RIN_ICU_PLURAL_RULE_LAG;
+         ++rule) {
+        make_locale(&locale);
+        locale.cardinal_rule = rule;
+        assert(rin_icu_data_locale_valid(&locale));
+    }
+    for (uint32_t rule = RIN_ICU_PLURAL_RULE_ORDINAL_CATALAN;
+         rule <= RIN_ICU_PLURAL_RULE_ORDINAL_UKRAINIAN;
+         ++rule) {
+        make_locale(&locale);
+        locale.cardinal_rule = rule;
+        assert(!rin_icu_data_locale_valid(&locale));
+    }
     make_locale(&locale);
     locale.ordinal_rule = RIN_ICU_PLURAL_RULE_ORDINAL_HINDI;
     assert(rin_icu_data_locale_valid(&locale));
