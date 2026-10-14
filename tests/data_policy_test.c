@@ -130,6 +130,17 @@ int main(void)
         locale.cardinal_rule = ordinal_rules[i];
         assert(!rin_icu_data_locale_valid(&locale));
     }
+    const uint32_t unsupported_cardinal_rules[] = {
+        RIN_ICU_PLURAL_RULE_CARDINAL_TAMAZIGHT,
+        RIN_ICU_PLURAL_RULE_CARDINAL_BELARUSIAN,
+        RIN_ICU_PLURAL_RULE_CARDINAL_BRETON,
+        RIN_ICU_PLURAL_RULE_CARDINAL_CORNISH,
+    };
+    for (size_t i = 0; i < sizeof(unsupported_cardinal_rules) / sizeof(unsupported_cardinal_rules[0]); ++i) {
+        make_locale(&locale);
+        locale.cardinal_rule = unsupported_cardinal_rules[i];
+        assert(!rin_icu_data_locale_valid(&locale));
+    }
     make_locale(&locale);
     locale.ordinal_rule = RIN_ICU_PLURAL_RULE_ORDINAL_HINDI;
     assert(rin_icu_data_locale_valid(&locale));

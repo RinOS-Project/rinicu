@@ -137,7 +137,12 @@ enum {
     RIN_ICU_PLURAL_RULE_ORDINAL_BULU = 43,
     RIN_ICU_PLURAL_RULE_ORDINAL_AZERBAIJANI = 44,
     /* CLDR kw (Cornish) is a distinct rule shape and must not reuse ID 38. */
-    RIN_ICU_PLURAL_RULE_ORDINAL_CORNISH = 45
+    RIN_ICU_PLURAL_RULE_ORDINAL_CORNISH = 45,
+    /* CLDR n-only cardinal rules appended without renumbering. */
+    RIN_ICU_PLURAL_RULE_CARDINAL_TAMAZIGHT = 46,
+    RIN_ICU_PLURAL_RULE_CARDINAL_BELARUSIAN = 47,
+    RIN_ICU_PLURAL_RULE_CARDINAL_BRETON = 48,
+    RIN_ICU_PLURAL_RULE_CARDINAL_CORNISH = 49
 };
 
 #if defined(_MSC_VER)
