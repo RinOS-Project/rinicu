@@ -130,17 +130,31 @@ int main(void)
         locale.cardinal_rule = ordinal_rules[i];
         assert(!rin_icu_data_locale_valid(&locale));
     }
-    const uint32_t unsupported_cardinal_rules[] = {
+    const uint32_t appended_cardinal_rules[] = {
         RIN_ICU_PLURAL_RULE_CARDINAL_TAMAZIGHT,
         RIN_ICU_PLURAL_RULE_CARDINAL_BELARUSIAN,
         RIN_ICU_PLURAL_RULE_CARDINAL_BRETON,
         RIN_ICU_PLURAL_RULE_CARDINAL_CORNISH,
+        RIN_ICU_PLURAL_RULE_CARDINAL_BALKAN_FRACTION,
+        RIN_ICU_PLURAL_RULE_CARDINAL_CEBUANO,
+        RIN_ICU_PLURAL_RULE_CARDINAL_SORBIAN,
+        RIN_ICU_PLURAL_RULE_CARDINAL_LATVIAN,
+        RIN_ICU_PLURAL_RULE_CARDINAL_MANX,
+        RIN_ICU_PLURAL_RULE_CARDINAL_ICELANDIC,
+        RIN_ICU_PLURAL_RULE_CARDINAL_LITHUANIAN,
+        RIN_ICU_PLURAL_RULE_CARDINAL_MACEDONIAN_FRACTION,
+        RIN_ICU_PLURAL_RULE_CARDINAL_SURSILVAN,
+        RIN_ICU_PLURAL_RULE_CARDINAL_SINHALA,
+        RIN_ICU_PLURAL_RULE_CARDINAL_SLOVENIAN,
     };
-    for (size_t i = 0; i < sizeof(unsupported_cardinal_rules) / sizeof(unsupported_cardinal_rules[0]); ++i) {
+    for (size_t i = 0; i < sizeof(appended_cardinal_rules) / sizeof(appended_cardinal_rules[0]); ++i) {
         make_locale(&locale);
-        locale.cardinal_rule = unsupported_cardinal_rules[i];
-        assert(!rin_icu_data_locale_valid(&locale));
+        locale.cardinal_rule = appended_cardinal_rules[i];
+        assert(rin_icu_data_locale_valid(&locale));
     }
+    make_locale(&locale);
+    locale.cardinal_rule = RIN_ICU_PLURAL_RULE_CARDINAL_SLOVENIAN + 1u;
+    assert(!rin_icu_data_locale_valid(&locale));
     make_locale(&locale);
     locale.ordinal_rule = RIN_ICU_PLURAL_RULE_ORDINAL_HINDI;
     assert(rin_icu_data_locale_valid(&locale));

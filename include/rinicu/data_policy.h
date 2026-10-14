@@ -243,7 +243,22 @@ static inline int rin_icu_data_locale_valid(
                                        sizeof(record->time_pattern), 0) ||
         !rin_icu_data_bytes_terminated(record->datetime_pattern,
                                        sizeof(record->datetime_pattern), 0) ||
-        record->cardinal_rule > RIN_ICU_PLURAL_RULE_LAG ||
+        (record->cardinal_rule > RIN_ICU_PLURAL_RULE_LAG &&
+         record->cardinal_rule != RIN_ICU_PLURAL_RULE_CARDINAL_TAMAZIGHT &&
+         record->cardinal_rule != RIN_ICU_PLURAL_RULE_CARDINAL_BELARUSIAN &&
+         record->cardinal_rule != RIN_ICU_PLURAL_RULE_CARDINAL_BRETON &&
+         record->cardinal_rule != RIN_ICU_PLURAL_RULE_CARDINAL_CORNISH &&
+         record->cardinal_rule != RIN_ICU_PLURAL_RULE_CARDINAL_BALKAN_FRACTION &&
+         record->cardinal_rule != RIN_ICU_PLURAL_RULE_CARDINAL_CEBUANO &&
+         record->cardinal_rule != RIN_ICU_PLURAL_RULE_CARDINAL_SORBIAN &&
+         record->cardinal_rule != RIN_ICU_PLURAL_RULE_CARDINAL_LATVIAN &&
+         record->cardinal_rule != RIN_ICU_PLURAL_RULE_CARDINAL_MANX &&
+         record->cardinal_rule != RIN_ICU_PLURAL_RULE_CARDINAL_ICELANDIC &&
+         record->cardinal_rule != RIN_ICU_PLURAL_RULE_CARDINAL_LITHUANIAN &&
+         record->cardinal_rule != RIN_ICU_PLURAL_RULE_CARDINAL_MACEDONIAN_FRACTION &&
+         record->cardinal_rule != RIN_ICU_PLURAL_RULE_CARDINAL_SURSILVAN &&
+         record->cardinal_rule != RIN_ICU_PLURAL_RULE_CARDINAL_SINHALA &&
+         record->cardinal_rule != RIN_ICU_PLURAL_RULE_CARDINAL_SLOVENIAN) ||
         record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_ONE ||
         record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_CATALAN ||
         record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_HINDI ||
