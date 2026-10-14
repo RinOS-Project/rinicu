@@ -251,6 +251,8 @@ static inline int rin_icu_data_locale_valid(
         record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_ITALIAN ||
         record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_SWEDISH ||
         record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_UKRAINIAN ||
+        record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_NEPALI ||
+        record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_KAZAKH ||
         (record->ordinal_rule > RIN_ICU_PLURAL_RULE_ENGLISH_ORDINAL &&
          record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_ONE &&
          record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_CATALAN &&
@@ -258,7 +260,9 @@ static inline int rin_icu_data_locale_valid(
          record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_HUNGARIAN &&
          record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_ITALIAN &&
          record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_SWEDISH &&
-         record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_UKRAINIAN) ||
+         record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_UKRAINIAN &&
+         record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_NEPALI &&
+         record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_KAZAKH) ||
         record->currency_digits > 3u ||
         (record->flags &
          ~(RIN_ICU_DATA_FLAG_DEFAULT_H12 | RIN_ICU_DATA_GROUPING_FLAGS_MASK |

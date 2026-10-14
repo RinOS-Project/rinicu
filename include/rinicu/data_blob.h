@@ -117,7 +117,10 @@ enum {
     RIN_ICU_PLURAL_RULE_SCOTTISH_GAELIC = 26,
     RIN_ICU_PLURAL_RULE_MALTESE = 27,
     RIN_ICU_PLURAL_RULE_SHI = 28,
-    RIN_ICU_PLURAL_RULE_LAG = 29
+    RIN_ICU_PLURAL_RULE_LAG = 29,
+    /* CLDR integer-only ordinal rules appended without renumbering. */
+    RIN_ICU_PLURAL_RULE_ORDINAL_NEPALI = 30,
+    RIN_ICU_PLURAL_RULE_ORDINAL_KAZAKH = 31
 };
 
 #if defined(_MSC_VER)
