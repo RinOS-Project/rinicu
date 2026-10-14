@@ -259,7 +259,7 @@ static inline int rin_icu_data_locale_valid(
         record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_ALBANIAN ||
         record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_BELARUSIAN ||
         record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_WELSH ||
-        record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_CORNISH ||
+        record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_SCOTTISH_GAELIC ||
         record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_MACEDONIAN ||
         record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_ODIA ||
         record->cardinal_rule == RIN_ICU_PLURAL_RULE_ORDINAL_TURKMEN ||
@@ -282,13 +282,14 @@ static inline int rin_icu_data_locale_valid(
          record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_ALBANIAN &&
          record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_BELARUSIAN &&
          record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_WELSH &&
-         record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_CORNISH &&
+         record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_SCOTTISH_GAELIC &&
          record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_MACEDONIAN &&
          record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_ODIA &&
          record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_TURKMEN &&
          record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_GEORGIAN &&
          record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_BULU &&
-         record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_AZERBAIJANI) ||
+         record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_AZERBAIJANI &&
+         record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_CORNISH) ||
         record->currency_digits > 3u ||
         (record->flags &
          ~(RIN_ICU_DATA_FLAG_DEFAULT_H12 | RIN_ICU_DATA_GROUPING_FLAGS_MASK |

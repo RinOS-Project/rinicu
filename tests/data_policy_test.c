@@ -116,13 +116,14 @@ int main(void)
         RIN_ICU_PLURAL_RULE_ORDINAL_ALBANIAN,
         RIN_ICU_PLURAL_RULE_ORDINAL_BELARUSIAN,
         RIN_ICU_PLURAL_RULE_ORDINAL_WELSH,
-        RIN_ICU_PLURAL_RULE_ORDINAL_CORNISH,
+        RIN_ICU_PLURAL_RULE_ORDINAL_SCOTTISH_GAELIC,
         RIN_ICU_PLURAL_RULE_ORDINAL_MACEDONIAN,
         RIN_ICU_PLURAL_RULE_ORDINAL_ODIA,
         RIN_ICU_PLURAL_RULE_ORDINAL_TURKMEN,
         RIN_ICU_PLURAL_RULE_ORDINAL_GEORGIAN,
         RIN_ICU_PLURAL_RULE_ORDINAL_BULU,
         RIN_ICU_PLURAL_RULE_ORDINAL_AZERBAIJANI,
+        RIN_ICU_PLURAL_RULE_ORDINAL_CORNISH,
     };
     for (size_t i = 0; i < sizeof(ordinal_rules) / sizeof(ordinal_rules[0]); ++i) {
         make_locale(&locale);
@@ -155,6 +156,9 @@ int main(void)
     assert(rin_icu_data_locale_valid(&locale));
     make_locale(&locale);
     locale.ordinal_rule = RIN_ICU_PLURAL_RULE_ORDINAL_WELSH;
+    assert(rin_icu_data_locale_valid(&locale));
+    make_locale(&locale);
+    locale.ordinal_rule = RIN_ICU_PLURAL_RULE_ORDINAL_SCOTTISH_GAELIC;
     assert(rin_icu_data_locale_valid(&locale));
     make_locale(&locale);
     locale.ordinal_rule = RIN_ICU_PLURAL_RULE_ORDINAL_CORNISH;
