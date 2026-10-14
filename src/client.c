@@ -7,6 +7,7 @@
 #endif
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -84,15 +85,35 @@ static int rin_icu_cstring_array_valid(const char* const* values, size_t count)
     return 1;
 }
 
+static int rin_icu_create_private_stream_socket(void)
+{
+    int fd;
+#if defined(SOCK_CLOEXEC)
+    fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    if (fd >= 0) return fd;
+    if (errno != EINVAL && errno != ENOSYS && errno != EOPNOTSUPP)
+        return -1;
+#endif
+    fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd < 0) return -1;
+    {
+        const int descriptor_flags = fcntl(fd, F_GETFD, 0);
+        if (descriptor_flags < 0 ||
+            fcntl(fd, F_SETFD, descriptor_flags | FD_CLOEXEC) != 0) {
+            close(fd);
+            return -1;
+        }
+    }
+    return fd;
+}
+
 static int rin_icu_connect_once(void)
 {
     struct sockaddr_un addr;
     rin_unix_service_identity_v1 identity;
     socklen_t identity_size = (socklen_t)sizeof(identity);
-    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (fd < 0) {
-        return -1;
-    }
+    int fd = rin_icu_create_private_stream_socket();
+    if (fd < 0) return -1;
 
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
