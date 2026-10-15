@@ -455,4 +455,61 @@ static inline int rin_icu_tzdb_zone_valid(
     return rule <= RIN_ICU_TZDB_DST_RULE_NEW_ZEALAND;
 }
 
+/* Validate the relationships that make a timezone table deterministic.  A
+ * record-level check is not enough for a replacement blob: duplicate zone IDs
+ * would make lookup order observable, while a dangling canonical ID would
+ * make alias resolution silently depend on the caller's fallback path. */
+static inline int rin_icu_tzdb_text_equal(const char* left, size_t left_capacity,
+                                          const char* right,
+                                          size_t right_capacity)
+{
+    size_t left_length = 0u;
+    size_t right_length = 0u;
+    size_t index;
+
+    if (!left || !right || left_capacity == 0u || right_capacity == 0u)
+        return 0;
+    while (left_length < left_capacity && left[left_length] != '\0')
+        ++left_length;
+    while (right_length < right_capacity && right[right_length] != '\0')
+        ++right_length;
+    if (left_length == left_capacity || right_length == right_capacity ||
+        left_length != right_length)
+        return 0;
+    for (index = 0u; index < left_length; ++index)
+        if (left[index] != right[index]) return 0;
+    return 1;
+}
+
+static inline int rin_icu_tzdb_zone_table_valid(
+    const RinIcuTzdbZoneRecord* records, uint32_t zone_count)
+{
+    uint32_t index;
+    uint32_t previous;
+
+    if (!records || zone_count == 0u || zone_count > RIN_ICU_TZDB_MAX_ZONES)
+        return 0;
+    for (index = 0u; index < zone_count; ++index) {
+        uint32_t canonical_index;
+        if (!rin_icu_tzdb_zone_valid(&records[index])) return 0;
+        for (previous = 0u; previous < index; ++previous)
+            if (rin_icu_tzdb_text_equal(
+                    records[index].zone_id, sizeof(records[index].zone_id),
+                    records[previous].zone_id,
+                    sizeof(records[previous].zone_id)))
+                return 0;
+        for (canonical_index = 0u; canonical_index < zone_count;
+             ++canonical_index) {
+            if (rin_icu_tzdb_text_equal(
+                    records[index].canonical_id,
+                    sizeof(records[index].canonical_id),
+                    records[canonical_index].zone_id,
+                    sizeof(records[canonical_index].zone_id)))
+                break;
+        }
+        if (canonical_index == zone_count) return 0;
+    }
+    return 1;
+}
+
 #endif

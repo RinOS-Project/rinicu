@@ -223,8 +223,22 @@ int main(void)
     strcpy(zone.canonical_id, "UTC");
     assert(rin_icu_tzdb_header_valid(&tz_header, tz_size));
     assert(rin_icu_tzdb_zone_valid(&zone));
+    assert(rin_icu_tzdb_zone_table_valid(&zone, 1u));
     zone.offset_minutes = 1441;
     assert(!rin_icu_tzdb_zone_valid(&zone));
+
+    zone.offset_minutes = 0;
+    strcpy(zone.zone_id, "Etc/UTC");
+    assert(!rin_icu_tzdb_zone_table_valid(&zone, 1u));
+    strcpy(zone.canonical_id, "Etc/UTC");
+    assert(rin_icu_tzdb_zone_table_valid(&zone, 1u));
+    RinIcuTzdbZoneRecord duplicate_zones[2] = {zone, zone};
+    assert(!rin_icu_tzdb_zone_table_valid(duplicate_zones, 2u));
+    strcpy(duplicate_zones[1].zone_id, "UTC-alias");
+    strcpy(duplicate_zones[1].canonical_id, "missing/zone");
+    assert(!rin_icu_tzdb_zone_table_valid(duplicate_zones, 2u));
+    strcpy(duplicate_zones[1].canonical_id, "Etc/UTC");
+    assert(rin_icu_tzdb_zone_table_valid(duplicate_zones, 2u));
 
     transition.offset_seconds = 0;
     transition.is_dst = 0u;
