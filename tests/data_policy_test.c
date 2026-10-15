@@ -246,5 +246,36 @@ int main(void)
     assert(rin_icu_tzdb_transition_valid(&transition));
     transition.reserved[0] = 1u;
     assert(!rin_icu_tzdb_transition_valid(&transition));
+
+    RinIcuTzdbZoneMetaV1 metas[2] = {};
+    RinIcuTzdbTransitionV1 transitions[3] = {};
+    metas[0].transition_count = 1u;
+    metas[1].transition_offset = 1u;
+    metas[1].transition_count = 1u;
+    transitions[0].at_epoch_seconds = 1;
+    transitions[1].at_epoch_seconds = 2;
+    transitions[2].at_epoch_seconds = 3;
+    strcpy(transitions[0].abbreviation, "UTC");
+    strcpy(transitions[1].abbreviation, "UTC");
+    strcpy(transitions[2].abbreviation, "UTC");
+    assert(rin_icu_tzdb_transition_table_valid(
+        metas, 2u, transitions, 2u));
+    metas[0].transition_count = 2u;
+    metas[1].transition_offset = 2u;
+    metas[1].transition_count = 0u;
+    transitions[1].at_epoch_seconds = 1;
+    assert(!rin_icu_tzdb_transition_table_valid(
+        metas, 2u, transitions, 2u));
+    metas[0].transition_count = 1u;
+    metas[1].transition_offset = 1u;
+    metas[1].transition_count = 1u;
+    transitions[1].at_epoch_seconds = 2;
+    metas[1].transition_offset = 0u;
+    assert(!rin_icu_tzdb_transition_table_valid(
+        metas, 2u, transitions, 2u));
+    metas[1].transition_offset = 2u;
+    metas[1].transition_count = 1u;
+    assert(!rin_icu_tzdb_transition_table_valid(
+        metas, 2u, transitions, 3u));
     return 0;
 }

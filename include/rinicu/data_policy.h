@@ -438,6 +438,47 @@ static inline int rin_icu_tzdb_meta_valid(
     return 1;
 }
 
+/* A valid metadata record is not sufficient for a replacement blob.  The
+ * ranges must form the same ordered, gap-free partition of the transition
+ * array that the reader uses for each zone; otherwise a valid transition can
+ * become unreachable or be interpreted by more than one zone. */
+static inline int rin_icu_tzdb_transition_table_valid(
+    const RinIcuTzdbZoneMetaV1* metas, uint32_t meta_count,
+    const RinIcuTzdbTransitionV1* transitions, uint32_t transition_count)
+{
+    uint32_t index;
+    uint32_t next_offset = 0u;
+
+    if (!metas || meta_count == 0u ||
+        meta_count > RIN_ICU_TZDB_MAX_ZONES ||
+        transition_count > RIN_ICU_TZDB_MAX_TRANSITIONS ||
+        (transition_count != 0u && !transitions))
+        return 0;
+    for (index = 0u; index < meta_count; ++index) {
+        uint32_t transition_index;
+        int has_previous = 0;
+        int64_t previous_at = 0;
+        const RinIcuTzdbZoneMetaV1* meta = &metas[index];
+
+        if (!rin_icu_tzdb_meta_valid(meta, transition_count) ||
+            meta->transition_offset != next_offset)
+            return 0;
+        for (transition_index = meta->transition_offset;
+             transition_index < meta->transition_offset + meta->transition_count;
+             ++transition_index) {
+            const RinIcuTzdbTransitionV1* transition =
+                &transitions[transition_index];
+            if (!rin_icu_tzdb_transition_valid(transition) ||
+                (has_previous && transition->at_epoch_seconds <= previous_at))
+                return 0;
+            previous_at = transition->at_epoch_seconds;
+            has_previous = 1;
+        }
+        next_offset = meta->transition_offset + meta->transition_count;
+    }
+    return next_offset == transition_count;
+}
+
 static inline int rin_icu_tzdb_zone_valid(
     const RinIcuTzdbZoneRecord* record)
 {
