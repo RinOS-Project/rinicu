@@ -27,7 +27,8 @@ enum {
 };
 
 #define RIN_ICU_TZDB_MAKE_FLAGS(has_dst, rule) \
-    (((has_dst) ? RIN_ICU_TZDB_FLAG_DST : 0u) | ((uint32_t)(rule) << RIN_ICU_TZDB_DST_RULE_SHIFT))
+    (((has_dst) ? (uint32_t)RIN_ICU_TZDB_FLAG_DST : UINT32_C(0)) | \
+     ((uint32_t)(rule) << RIN_ICU_TZDB_DST_RULE_SHIFT))
 
 #define RIN_ICU_TZDB_DST_RULE_FROM_FLAGS(flags) \
     (((uint32_t)(flags) & RIN_ICU_TZDB_DST_RULE_MASK) >> RIN_ICU_TZDB_DST_RULE_SHIFT)
