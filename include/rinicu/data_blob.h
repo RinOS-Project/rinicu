@@ -14,7 +14,10 @@ enum {
     RIN_ICU_DATA_FLAG_GROUPING_PRESENT = 1u << 1,
     /* Bits 24-27 carry the CLDR standard decimal maximum fraction digits
      * without changing the fixed-size v1 record. */
-    RIN_ICU_DATA_FLAG_DECIMAL_DIGITS_PRESENT = 1u << 2
+    RIN_ICU_DATA_FLAG_DECIMAL_DIGITS_PRESENT = 1u << 2,
+    /* CLDR supplementalData/measurementData default measurement system is
+     * US. Metric and UK map to the clear bit in the .NET PAL contract. */
+    RIN_ICU_DATA_FLAG_MEASUREMENT_US = 1u << 3
 };
 
 #define RIN_ICU_DATA_GROUPING_PRIMARY_SHIFT 8u

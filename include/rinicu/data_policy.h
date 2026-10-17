@@ -307,7 +307,8 @@ static inline int rin_icu_data_locale_valid(
          record->ordinal_rule != RIN_ICU_PLURAL_RULE_ORDINAL_CORNISH) ||
         record->currency_digits > 3u ||
         (record->flags &
-         ~(RIN_ICU_DATA_FLAG_DEFAULT_H12 | RIN_ICU_DATA_GROUPING_FLAGS_MASK |
+         ~(RIN_ICU_DATA_FLAG_DEFAULT_H12 | RIN_ICU_DATA_FLAG_MEASUREMENT_US |
+          RIN_ICU_DATA_GROUPING_FLAGS_MASK |
            RIN_ICU_DATA_DECIMAL_FLAGS_MASK)) !=
             0u ||
         !rin_icu_data_grouping_flags_valid(record->flags) ||
