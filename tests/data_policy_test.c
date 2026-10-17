@@ -73,6 +73,15 @@ int main(void)
     locale.week_data |= 17u << RIN_ICU_DATA_CURRENCY_NEGATIVE_PATTERN_SHIFT;
     assert(!rin_icu_data_locale_valid(&locale));
     make_locale(&locale);
+    locale.week_data |= RIN_ICU_DATA_PERCENT_NEGATIVE_PATTERN_PRESENT |
+                        (11u << RIN_ICU_DATA_PERCENT_NEGATIVE_PATTERN_SHIFT);
+    assert(rin_icu_data_locale_valid(&locale));
+    assert(rin_icu_data_percent_negative_pattern_present(locale.week_data));
+    assert(rin_icu_data_percent_negative_pattern(locale.week_data) == 11u);
+    locale.week_data &= ~RIN_ICU_DATA_PERCENT_NEGATIVE_PATTERN_MASK;
+    locale.week_data |= 12u << RIN_ICU_DATA_PERCENT_NEGATIVE_PATTERN_SHIFT;
+    assert(!rin_icu_data_locale_valid(&locale));
+    make_locale(&locale);
     strcpy(root.locale_id, "root");
     root.week_data = locale.week_data;
     memset(&regional, 0, sizeof(regional));

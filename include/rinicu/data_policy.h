@@ -132,6 +132,11 @@ static inline int rin_icu_data_week_data_valid(uint32_t week_data)
         RIN_ICU_DATA_CURRENCY_NEGATIVE_PATTERN_SHIFT;
     int currency_negative_pattern_present =
         (week_data & RIN_ICU_DATA_CURRENCY_NEGATIVE_PATTERN_PRESENT) != 0u;
+    uint32_t percent_negative_pattern =
+        (week_data & RIN_ICU_DATA_PERCENT_NEGATIVE_PATTERN_MASK) >>
+        RIN_ICU_DATA_PERCENT_NEGATIVE_PATTERN_SHIFT;
+    int percent_negative_pattern_present =
+        (week_data & RIN_ICU_DATA_PERCENT_NEGATIVE_PATTERN_PRESENT) != 0u;
     return (week_data & ~RIN_ICU_DATA_WEEK_DATA_MASK) == 0u &&
            first_day <= RIN_ICU_DATA_WEEK_SATURDAY && min_days >= 1u &&
            min_days <= 7u && weekend_start <= RIN_ICU_DATA_WEEK_SATURDAY &&
@@ -143,7 +148,12 @@ static inline int rin_icu_data_week_data_valid(uint32_t week_data)
              currency_negative_pattern == 0u) ||
             (currency_negative_pattern_present &&
              currency_negative_pattern <=
-                 RIN_ICU_DATA_CURRENCY_NEGATIVE_PATTERN_MAX));
+                 RIN_ICU_DATA_CURRENCY_NEGATIVE_PATTERN_MAX)) &&
+           ((!percent_negative_pattern_present &&
+             percent_negative_pattern == 0u) ||
+            (percent_negative_pattern_present &&
+             percent_negative_pattern <=
+                 RIN_ICU_DATA_PERCENT_NEGATIVE_PATTERN_MAX));
 }
 
 static inline int rin_icu_data_numbering_system_present(uint32_t week_data)
@@ -168,6 +178,19 @@ static inline uint32_t rin_icu_data_currency_negative_pattern(
 {
     return (week_data & RIN_ICU_DATA_CURRENCY_NEGATIVE_PATTERN_MASK) >>
            RIN_ICU_DATA_CURRENCY_NEGATIVE_PATTERN_SHIFT;
+}
+
+static inline int rin_icu_data_percent_negative_pattern_present(
+    uint32_t week_data)
+{
+    return (week_data & RIN_ICU_DATA_PERCENT_NEGATIVE_PATTERN_PRESENT) != 0u;
+}
+
+static inline uint32_t rin_icu_data_percent_negative_pattern(
+    uint32_t week_data)
+{
+    return (week_data & RIN_ICU_DATA_PERCENT_NEGATIVE_PATTERN_MASK) >>
+           RIN_ICU_DATA_PERCENT_NEGATIVE_PATTERN_SHIFT;
 }
 
 static inline int rin_icu_data_grouping_flags_valid(uint32_t flags)
