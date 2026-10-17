@@ -58,6 +58,12 @@ int main(void)
     data_header.record_size = sizeof(locale);
     assert(rin_icu_data_header_valid(&data_header, data_size));
     assert(rin_icu_data_locale_valid(&locale));
+    locale.flags = RIN_ICU_DATA_FLAG_READING_LAYOUT_PRESENT |
+                   RIN_ICU_DATA_FLAG_READING_LAYOUT_RTL;
+    assert(rin_icu_data_locale_valid(&locale));
+    locale.flags = RIN_ICU_DATA_FLAG_READING_LAYOUT_RTL;
+    assert(!rin_icu_data_locale_valid(&locale));
+    locale.flags = 0u;
     strcpy(root.locale_id, "root");
     root.week_data = locale.week_data;
     memset(&regional, 0, sizeof(regional));

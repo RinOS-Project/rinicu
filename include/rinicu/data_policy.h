@@ -308,11 +308,14 @@ static inline int rin_icu_data_locale_valid(
         record->currency_digits > 3u ||
         (record->flags &
          ~(RIN_ICU_DATA_FLAG_DEFAULT_H12 | RIN_ICU_DATA_FLAG_MEASUREMENT_US |
+          RIN_ICU_DATA_READING_LAYOUT_FLAGS_MASK |
           RIN_ICU_DATA_GROUPING_FLAGS_MASK |
            RIN_ICU_DATA_DECIMAL_FLAGS_MASK)) !=
             0u ||
         !rin_icu_data_grouping_flags_valid(record->flags) ||
         !rin_icu_data_decimal_digits_valid(record->flags) ||
+        ((record->flags & RIN_ICU_DATA_FLAG_READING_LAYOUT_RTL) != 0u &&
+         (record->flags & RIN_ICU_DATA_FLAG_READING_LAYOUT_PRESENT) == 0u) ||
         !rin_icu_data_week_data_valid(record->week_data))
         return 0;
     return 1;

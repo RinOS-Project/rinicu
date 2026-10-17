@@ -17,8 +17,16 @@ enum {
     RIN_ICU_DATA_FLAG_DECIMAL_DIGITS_PRESENT = 1u << 2,
     /* CLDR supplementalData/measurementData default measurement system is
      * US. Metric and UK map to the clear bit in the .NET PAL contract. */
-    RIN_ICU_DATA_FLAG_MEASUREMENT_US = 1u << 3
+    RIN_ICU_DATA_FLAG_MEASUREMENT_US = 1u << 3,
+    /* CLDR layout/orientation/characterOrder is explicit for this record.
+     * The PRESENT bit lets old RICUDB1 blobs keep their reviewed fallback. */
+    RIN_ICU_DATA_FLAG_READING_LAYOUT_PRESENT = 1u << 4,
+    RIN_ICU_DATA_FLAG_READING_LAYOUT_RTL = 1u << 5
 };
+
+#define RIN_ICU_DATA_READING_LAYOUT_FLAGS_MASK \
+    (RIN_ICU_DATA_FLAG_READING_LAYOUT_PRESENT | \
+     RIN_ICU_DATA_FLAG_READING_LAYOUT_RTL)
 
 #define RIN_ICU_DATA_GROUPING_PRIMARY_SHIFT 8u
 #define RIN_ICU_DATA_GROUPING_PRIMARY_MASK UINT32_C(0x00007f00)
