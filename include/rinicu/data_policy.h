@@ -269,12 +269,6 @@ static inline uint32_t rin_icu_data_decimal_digits(uint32_t flags)
            RIN_ICU_DATA_DECIMAL_DIGITS_SHIFT;
 }
 
-static inline int rin_icu_data_minimum_grouping_digits_valid(uint32_t flags)
-{
-    return ((flags & RIN_ICU_DATA_MINIMUM_GROUPING_DIGITS_MASK) >>
-            RIN_ICU_DATA_MINIMUM_GROUPING_DIGITS_SHIFT) <= 3u;
-}
-
 static inline uint32_t rin_icu_data_minimum_grouping_digits(uint32_t flags)
 {
     uint32_t encoded = (flags & RIN_ICU_DATA_MINIMUM_GROUPING_DIGITS_MASK) >>
@@ -397,7 +391,6 @@ static inline int rin_icu_data_locale_valid(
             0u ||
         !rin_icu_data_grouping_flags_valid(record->flags) ||
         !rin_icu_data_decimal_digits_valid(record->flags) ||
-        !rin_icu_data_minimum_grouping_digits_valid(record->flags) ||
         ((record->flags & RIN_ICU_DATA_FLAG_READING_LAYOUT_RTL) != 0u &&
          (record->flags & RIN_ICU_DATA_FLAG_READING_LAYOUT_PRESENT) == 0u) ||
         !rin_icu_data_week_data_valid(record->week_data))
