@@ -21,12 +21,17 @@ enum {
     /* CLDR layout/orientation/characterOrder is explicit for this record.
      * The PRESENT bit lets old RICUDB1 blobs keep their reviewed fallback. */
     RIN_ICU_DATA_FLAG_READING_LAYOUT_PRESENT = 1u << 4,
-    RIN_ICU_DATA_FLAG_READING_LAYOUT_RTL = 1u << 5
+    RIN_ICU_DATA_FLAG_READING_LAYOUT_RTL = 1u << 5,
+    /* Bits 6-7 carry CLDR numbers/minimumGroupingDigits.  Zero means the
+     * field is absent and preserves the legacy reader default of 1. */
 };
 
 #define RIN_ICU_DATA_READING_LAYOUT_FLAGS_MASK \
     (RIN_ICU_DATA_FLAG_READING_LAYOUT_PRESENT | \
      RIN_ICU_DATA_FLAG_READING_LAYOUT_RTL)
+
+#define RIN_ICU_DATA_MINIMUM_GROUPING_DIGITS_SHIFT 6u
+#define RIN_ICU_DATA_MINIMUM_GROUPING_DIGITS_MASK UINT32_C(0x000000c0)
 
 #define RIN_ICU_DATA_GROUPING_PRIMARY_SHIFT 8u
 #define RIN_ICU_DATA_GROUPING_PRIMARY_MASK UINT32_C(0x00007f00)

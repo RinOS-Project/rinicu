@@ -21,6 +21,11 @@ secondary group size. A zero/zero pair means that the locale's standard
 decimal pattern is ungrouped. Records without the presence bit retain the
 legacy reader fallback and are accepted for backward-compatible loading.
 
+Bits 6-7 carry CLDR `numbers/minimumGroupingDigits` as a bounded enum: zero
+means the field is absent and retains the legacy value of 1, while values 1,
+2, and 3 carry the official value. This bounded projection does not change
+the fixed 380-byte record ABI.
+
 When `flags & RIN_ICU_DATA_FLAG_DECIMAL_DIGITS_PRESENT` is set, bits 24-27
 carry the maximum fraction-digit count of the locale's CLDR standard decimal
 pattern. The product formatter bounds this value to six. Records without the
