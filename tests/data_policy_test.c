@@ -58,6 +58,26 @@ int main(void)
     data_header.record_size = sizeof(locale);
     assert(rin_icu_data_header_valid(&data_header, data_size));
     assert(rin_icu_data_locale_valid(&locale));
+    strcpy(locale.locale_id, "en-US-posix");
+    assert(rin_icu_data_locale_id_valid(locale.locale_id,
+                                        sizeof(locale.locale_id)));
+    strcpy(locale.locale_id, "es-419");
+    assert(rin_icu_data_locale_valid(&locale));
+    strcpy(locale.locale_id, "ca-ES-valencia");
+    assert(rin_icu_data_locale_valid(&locale));
+    strcpy(locale.locale_id, "de-DE-1996");
+    assert(rin_icu_data_locale_valid(&locale));
+    strcpy(locale.locale_id, "en-Latn-US");
+    assert(rin_icu_data_locale_valid(&locale));
+    strcpy(locale.locale_id, "EN-us");
+    assert(!rin_icu_data_locale_valid(&locale));
+    strcpy(locale.locale_id, "en--US");
+    assert(!rin_icu_data_locale_valid(&locale));
+    strcpy(locale.locale_id, "en-u-ca-gregory");
+    assert(!rin_icu_data_locale_valid(&locale));
+    strcpy(locale.locale_id, "en_US");
+    assert(!rin_icu_data_locale_valid(&locale));
+    make_locale(&locale);
     locale.flags = RIN_ICU_DATA_FLAG_READING_LAYOUT_PRESENT |
                    RIN_ICU_DATA_FLAG_READING_LAYOUT_RTL;
     assert(rin_icu_data_locale_valid(&locale));

@@ -11,7 +11,10 @@ bounded). The committed product projection remains a separate, smaller
 compatibility scope and is not thereby promoted to full CLDR parity.
 
 Every fixed string field must be terminated within its field and contain no
-control byte. Plural rules, currency digits, flags, and all reserved values are
+control byte. `locale_id` is additionally restricted to the canonical product
+projection `language[-script][-region][-variant]`; BCP-47 extensions and
+private-use subtags are not representable in this fixed-record ABI and are
+rejected. Plural rules, currency digits, flags, and all reserved values are
 validated before the service installs a catalog. Generated data and the API
 ABI have independent version numbers.
 

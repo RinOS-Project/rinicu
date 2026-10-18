@@ -78,6 +78,101 @@ static inline int rin_icu_data_locale_id_equal(const char* left,
     return 1;
 }
 
+/* RICUDB1 stores a bounded product locale key, not an arbitrary BCP-47 tag.
+ * Keep the accepted projection identical to the generator: language, optional
+ * script, optional region, and at most one variant.  Extensions/private-use
+ * subtags are not representable in the fixed record ABI and must fail closed.
+ */
+static inline int rin_icu_data_locale_id_valid(const char* value,
+                                               size_t capacity)
+{
+    size_t length = 0u;
+    size_t part_start = 0u;
+    uint32_t part_index = 0u;
+    int saw_script = 0;
+    int saw_region = 0;
+    int saw_variant = 0;
+
+    if (!value || capacity == 0u)
+        return 0;
+    while (length < capacity && value[length] != '\0')
+        ++length;
+    if (length == 0u || length == capacity)
+        return 0;
+    if (rin_icu_data_locale_id_equal(value, capacity, "root",
+                                     sizeof("root")))
+        return 1;
+
+    while (part_start < length) {
+        size_t part_end = part_start;
+        size_t part_length;
+        size_t index;
+        int all_alpha = 1;
+        int all_lower = 1;
+        int all_upper = 1;
+        int all_digit = 1;
+        int all_variant = 1;
+
+        while (part_end < length && value[part_end] != '-')
+            ++part_end;
+        if (part_end == part_start)
+            return 0;
+        part_length = part_end - part_start;
+        for (index = part_start; index < part_end; ++index) {
+            unsigned char byte = (unsigned char)value[index];
+            int is_alpha = (byte >= (unsigned char)'A' &&
+                            byte <= (unsigned char)'Z') ||
+                           (byte >= (unsigned char)'a' &&
+                            byte <= (unsigned char)'z');
+            int is_lower = byte >= (unsigned char)'a' &&
+                           byte <= (unsigned char)'z';
+            int is_upper = byte >= (unsigned char)'A' &&
+                           byte <= (unsigned char)'Z';
+            int is_digit = byte >= (unsigned char)'0' &&
+                           byte <= (unsigned char)'9';
+            all_alpha = all_alpha && is_alpha;
+            all_lower = all_lower && is_lower;
+            all_upper = all_upper && is_upper;
+            all_digit = all_digit && is_digit;
+            all_variant = all_variant && (is_lower || is_digit);
+            if (!is_alpha && !is_digit)
+                return 0;
+        }
+
+        if (part_index == 0u) {
+            if (part_length < 2u || part_length > 8u || !all_alpha ||
+                !all_lower)
+                return 0;
+        } else if (!saw_script && !saw_region && part_length == 4u &&
+                   all_alpha &&
+                   value[part_start] >= 'A' && value[part_start] <= 'Z') {
+            for (index = part_start + 1u; index < part_end; ++index) {
+                if (value[index] < 'a' || value[index] > 'z')
+                    return 0;
+            }
+            saw_script = 1;
+        } else if (!saw_region &&
+                   ((part_length == 2u && all_alpha && all_upper) ||
+                    (part_length == 3u && all_digit))) {
+            saw_region = 1;
+        } else if (!saw_variant &&
+                   ((part_length >= 5u && part_length <= 8u && all_variant) ||
+                    (part_length == 4u &&
+                     value[part_start] >= '0' &&
+                     value[part_start] <= '9' && all_variant))) {
+            saw_variant = 1;
+        } else {
+            return 0;
+        }
+
+        if (part_end == length)
+            break;
+        part_start = part_end + 1u;
+        ++part_index;
+    }
+    return 1;
+}
+
 static inline int rin_icu_data_bytes_terminated(const char* value,
                                                 size_t capacity,
                                                 int require_nonempty)
@@ -281,8 +376,8 @@ static inline uint32_t rin_icu_data_minimum_grouping_digits(uint32_t flags)
 static inline int rin_icu_data_locale_valid(
     const RinIcuDataLocaleRecord* record)
 {
-    if (!record || !rin_icu_data_bytes_terminated(record->locale_id,
-                                                  sizeof(record->locale_id), 1) ||
+    if (!record || !rin_icu_data_locale_id_valid(record->locale_id,
+                                                 sizeof(record->locale_id)) ||
         !rin_icu_data_bytes_terminated(record->language,
                                        sizeof(record->language), 0) ||
         !rin_icu_data_bytes_terminated(record->region,
