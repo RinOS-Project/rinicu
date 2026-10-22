@@ -467,6 +467,26 @@ inline StringResult display_name(Client& client, std::string const& locale, std:
     return { RIN_ICU_STATUS_OK, out };
 }
 
+inline StringResult display_name_at_epoch_ms(Client& client, std::string const& locale, std::string const& code, uint32_t type, uint32_t style, int64_t epoch_ms, uint32_t language_display = RIN_ICU_LANGUAGE_DISPLAY_STANDARD)
+{
+    char buffer[256];
+    size_t length = 0;
+    int status = rin_icu_display_name_at_epoch_ms(client.raw(), locale.c_str(), code.c_str(),
+        type, style, language_display, epoch_ms, buffer, sizeof(buffer), &length);
+    if (status != RIN_ICU_STATUS_OK && status != RIN_ICU_STATUS_NO_SPACE)
+        return { status, {} };
+    if (length < sizeof(buffer))
+        return { RIN_ICU_STATUS_OK, std::string(buffer, length) };
+    std::string out;
+    out.resize(length + 1u);
+    status = rin_icu_display_name_at_epoch_ms(client.raw(), locale.c_str(), code.c_str(),
+        type, style, language_display, epoch_ms, out.data(), out.size(), &length);
+    if (status != RIN_ICU_STATUS_OK)
+        return { status, {} };
+    out.resize(length);
+    return { RIN_ICU_STATUS_OK, out };
+}
+
 inline StringResult list_format(Client& client, std::string const& locale, uint32_t type, uint32_t style, char const* const* items, size_t item_count)
 {
     size_t len = 0;

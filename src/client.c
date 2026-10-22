@@ -1499,6 +1499,49 @@ int rin_icu_display_name(rin_icu_client_t* client,
     return status;
 }
 
+int rin_icu_display_name_at_epoch_ms(rin_icu_client_t* client,
+                                      const char* locale,
+                                      const char* code,
+                                      uint32_t type,
+                                      uint32_t style,
+                                      uint32_t language_display,
+                                      int64_t epoch_ms,
+                                      char* dest,
+                                      size_t dest_cap,
+                                      size_t* out_len)
+{
+    RinIcuDisplayNameRequestV2 request;
+    size_t locale_len = rin_icu_strlen_c(locale);
+    size_t code_len = rin_icu_strlen_c(code);
+    uint32_t payload_len;
+    unsigned char* payload;
+    int status;
+    if (rin_icu_payload_size3(sizeof(request), locale_len, code_len,
+                              &payload_len) != RIN_ICU_STATUS_OK)
+        return RIN_ICU_STATUS_TOO_LARGE;
+    payload = (unsigned char*)malloc((size_t)payload_len);
+    if (!payload) {
+        return RIN_ICU_STATUS_IO_ERROR;
+    }
+    memset(&request, 0, sizeof(request));
+    request.locale_len = (uint32_t)locale_len;
+    request.code_len = (uint32_t)code_len;
+    request.type = type;
+    request.style = style;
+    request.language_display = language_display;
+    request.epoch_ms = epoch_ms;
+    memcpy(payload, &request, sizeof(request));
+    if (locale_len > 0u) {
+        memcpy(payload + sizeof(request), locale ? locale : "", locale_len);
+    }
+    if (code_len > 0u) {
+        memcpy(payload + sizeof(request) + locale_len, code ? code : "", code_len);
+    }
+    status = rin_icu_call_text_command(client, RIN_ICU_CMD_DISPLAY_NAME_V2, 0u, payload, payload_len, dest, dest_cap, out_len);
+    free(payload);
+    return status;
+}
+
 int rin_icu_list_format(rin_icu_client_t* client,
                         const char* locale,
                         uint32_t type,

@@ -78,6 +78,7 @@ int rin_icu_plural_rules_select(rin_icu_client_t* client, rin_icu_handle_t handl
 int rin_icu_plural_rules_destroy(rin_icu_client_t* client, rin_icu_handle_t handle);
 
 int rin_icu_display_name(rin_icu_client_t* client, const char* locale, const char* code, uint32_t type, uint32_t style, uint32_t language_display, char* dest, size_t dest_cap, size_t* out_len);
+int rin_icu_display_name_at_epoch_ms(rin_icu_client_t* client, const char* locale, const char* code, uint32_t type, uint32_t style, uint32_t language_display, int64_t epoch_ms, char* dest, size_t dest_cap, size_t* out_len);
 int rin_icu_list_format(rin_icu_client_t* client, const char* locale, uint32_t type, uint32_t style, const char* const* items, size_t item_count, char* dest, size_t dest_cap, size_t* out_len);
 int rin_icu_relative_time_format(rin_icu_client_t* client, const char* locale, uint32_t style, uint32_t numeric_display, uint32_t unit, double value, char* dest, size_t dest_cap, size_t* out_len);
 
