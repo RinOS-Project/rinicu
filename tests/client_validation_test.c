@@ -2,6 +2,9 @@
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <unistd.h>
 
 /* Include the implementation so the host-only test can exercise private
  * wire-shape validators without adding them to the public API. */
@@ -19,6 +22,9 @@ int main(void)
     RinIcuBytesResponse outer;
     RinIcuBulkBytesResponse inner;
     RinIcuCompareResponse compare;
+    int timeout_pair[2];
+    struct timeval receive_timeout;
+    struct timeval send_timeout;
     char text_output[8];
     uint8_t byte_output[8];
     size_t output_length = SIZE_MAX;
@@ -51,8 +57,10 @@ int main(void)
                                       &output_length) ==
            RIN_ICU_STATUS_NO_SPACE);
     assert(output_length == 3u);
-    for (size_t index = 0u; index < sizeof(text_output); ++index)
+    for (size_t index = 0u; index < 2u; ++index)
         assert(text_output[index] == 0u);
+    for (size_t index = 2u; index < sizeof(text_output); ++index)
+        assert((unsigned char)text_output[index] == 0xa5u);
     memset(text_output, 0xa5, sizeof(text_output));
     assert(rin_icu_copy_text_response(text_payload, sizeof(text_payload) - 1u,
                                       text_output, sizeof(text_output),
@@ -67,8 +75,10 @@ int main(void)
                                        &output_length) ==
            RIN_ICU_STATUS_NO_SPACE);
     assert(output_length == 3u);
-    for (size_t index = 0u; index < sizeof(byte_output); ++index)
+    for (size_t index = 0u; index < 2u; ++index)
         assert(byte_output[index] == 0u);
+    for (size_t index = 2u; index < sizeof(byte_output); ++index)
+        assert(byte_output[index] == 0xa5u);
 
     memset(bulk_payload, 0, sizeof(bulk_payload));
     outer.data_len = (uint32_t)(sizeof(inner) + sizeof(uint32_t) + 2u);
@@ -87,6 +97,22 @@ int main(void)
     assert(!rin_icu_response_handle_valid(RIN_ICU_CMD_COLLATOR_CREATE_V1, 0u, 0u));
     assert(rin_icu_response_handle_valid(RIN_ICU_CMD_COLLATOR_COMPARE_V1, 7u, 7u));
     assert(!rin_icu_response_handle_valid(RIN_ICU_CMD_COLLATOR_COMPARE_V1, 7u, 8u));
+
+    assert(rin_icu_apply_io_timeout(-1) == -1);
+    assert(socketpair(AF_UNIX, SOCK_STREAM, 0, timeout_pair) == 0);
+    assert(rin_icu_apply_io_timeout(timeout_pair[0]) == 0);
+    socklen_t timeout_size = (socklen_t)sizeof(receive_timeout);
+    assert(getsockopt(timeout_pair[0], SOL_SOCKET, SO_RCVTIMEO,
+                      &receive_timeout, &timeout_size) == 0);
+    assert(timeout_size == sizeof(receive_timeout));
+    assert(receive_timeout.tv_sec == 30 && receive_timeout.tv_usec == 0);
+    timeout_size = (socklen_t)sizeof(send_timeout);
+    assert(getsockopt(timeout_pair[0], SOL_SOCKET, SO_SNDTIMEO,
+                      &send_timeout, &timeout_size) == 0);
+    assert(timeout_size == sizeof(send_timeout));
+    assert(send_timeout.tv_sec == 30 && send_timeout.tv_usec == 0);
+    close(timeout_pair[0]);
+    close(timeout_pair[1]);
 
     compare.result = 0;
     compare.reserved0 = 1u;

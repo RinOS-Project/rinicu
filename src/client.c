@@ -12,6 +12,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/time.h>
 #include <rin/socket_abi.h>
 #if RIN_ICU_ENABLE_AUTOSTART
 #include <time.h>
@@ -20,6 +21,10 @@
 
 enum {
     RIN_ICU_MAX_IO_EINTR = 32u,
+    /* Keep the client-side budget aligned with rinicud's idle session
+     * lifetime.  A service that stops making progress must not leave a
+     * managed caller blocked forever in a blocking socket operation. */
+    RIN_ICU_CLIENT_IO_TIMEOUT_MS = 30000u,
 };
 
 #if RIN_ICU_ENABLE_AUTOSTART
@@ -94,6 +99,18 @@ static int rin_icu_create_private_stream_socket(void)
 #endif
 }
 
+static int rin_icu_apply_io_timeout(int fd)
+{
+    struct timeval timeout;
+    if (fd < 0) return -1;
+    timeout.tv_sec = (time_t)(RIN_ICU_CLIENT_IO_TIMEOUT_MS / 1000u);
+    timeout.tv_usec = (suseconds_t)((RIN_ICU_CLIENT_IO_TIMEOUT_MS % 1000u) * 1000u);
+    if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) != 0 ||
+        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) != 0)
+        return -1;
+    return 0;
+}
+
 static int rin_icu_connect_once(void)
 {
     struct sockaddr_un addr;
@@ -111,7 +128,8 @@ static int rin_icu_connect_once(void)
         getsockopt(fd, SOL_SOCKET, SO_RIN_UNIX_SERVICE_IDENTITY,
                    &identity, &identity_size) == 0 &&
         identity_size == (socklen_t)sizeof(identity) &&
-        rin_icu_service_identity_valid(&identity)) {
+        rin_icu_service_identity_valid(&identity) &&
+        rin_icu_apply_io_timeout(fd) == 0) {
         return fd;
     }
 
