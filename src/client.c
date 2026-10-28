@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <stdatomic.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -26,6 +27,27 @@ enum {
      * managed caller blocked forever in a blocking socket operation. */
     RIN_ICU_CLIENT_IO_TIMEOUT_MS = 30000u,
 };
+
+/* A client owns one ordered request/response stream.  The managed PAL keeps
+ * one client in process storage, so concurrent globalization calls must not
+ * interleave their headers or consume each other's responses.  Keep the
+ * mutex outside the opaque public client storage: that storage is an ABI
+ * contract and may be supplied by callers with no alignment beyond
+ * uintptr_t.  This lock is deliberately process-wide because callers may
+ * also share a client instance across PAL entry points. */
+static atomic_flag g_rin_icu_client_lock = ATOMIC_FLAG_INIT;
+
+static void rin_icu_lock(void)
+{
+    while (atomic_flag_test_and_set_explicit(&g_rin_icu_client_lock,
+                                              memory_order_acquire)) {
+    }
+}
+
+static void rin_icu_unlock(void)
+{
+    atomic_flag_clear_explicit(&g_rin_icu_client_lock, memory_order_release);
+}
 
 #if RIN_ICU_ENABLE_AUTOSTART
 #include <rin/service.h>
@@ -419,15 +441,21 @@ static int rin_icu_client_call(rin_icu_client_t* client,
     unsigned char* response_payload = NULL;
     uint32_t request_id;
 
-    internal = rin_icu_client_internal(client);
-    if (!internal || internal->state_magic != RIN_ICU_CLIENT_STATE_MAGIC ||
-        internal->fd < 0) {
+    if (!client) {
         return RIN_ICU_STATUS_INVALID;
     }
     if (payload_len > RIN_ICU_MAX_INLINE_PAYLOAD) {
         return RIN_ICU_STATUS_TOO_LARGE;
     }
     if (payload_len > 0u && !payload) {
+        return RIN_ICU_STATUS_INVALID;
+    }
+
+    rin_icu_lock();
+    internal = rin_icu_client_internal(client);
+    if (!internal || internal->state_magic != RIN_ICU_CLIENT_STATE_MAGIC ||
+        internal->fd < 0) {
+        rin_icu_unlock();
         return RIN_ICU_STATUS_INVALID;
     }
 
@@ -444,18 +472,24 @@ static int rin_icu_client_call(rin_icu_client_t* client,
 
     if (rin_icu_send_all(internal->fd, &header, sizeof(header)) != 0 ||
         (payload_len > 0u && rin_icu_send_all(internal->fd, payload, payload_len) != 0)) {
-        rin_icu_client_close(client);
+        close(internal->fd);
+        internal->fd = -1;
+        rin_icu_unlock();
         return RIN_ICU_STATUS_IO_ERROR;
     }
 
     if (rin_icu_recv_all(internal->fd, &response, sizeof(response)) != 0) {
-        rin_icu_client_close(client);
+        close(internal->fd);
+        internal->fd = -1;
+        rin_icu_unlock();
         return RIN_ICU_STATUS_IO_ERROR;
     }
 
     if (response.magic != RIN_ICU_MAGIC ||
         response.version != RIN_ICU_VERSION) {
-        rin_icu_client_close(client);
+        close(internal->fd);
+        internal->fd = -1;
+        rin_icu_unlock();
         return RIN_ICU_STATUS_VERSION_MISMATCH;
     }
 
@@ -467,19 +501,25 @@ static int rin_icu_client_call(rin_icu_client_t* client,
         (response.status == RIN_ICU_STATUS_OK
              ? !rin_icu_response_handle_valid(command, handle_id, response.handle_id)
              : response.handle_id != 0u)) {
-        rin_icu_client_close(client);
+        close(internal->fd);
+        internal->fd = -1;
+        rin_icu_unlock();
         return RIN_ICU_STATUS_DATA_ERROR;
     }
 
     if (response.payload_len > 0u) {
         response_payload = (unsigned char*)malloc((size_t)response.payload_len);
         if (!response_payload) {
-            rin_icu_client_close(client);
+            close(internal->fd);
+            internal->fd = -1;
+            rin_icu_unlock();
             return RIN_ICU_STATUS_IO_ERROR;
         }
         if (rin_icu_recv_all(internal->fd, response_payload, response.payload_len) != 0) {
             free(response_payload);
-            rin_icu_client_close(client);
+            close(internal->fd);
+            internal->fd = -1;
+            rin_icu_unlock();
             return RIN_ICU_STATUS_IO_ERROR;
         }
     }
@@ -489,7 +529,9 @@ static int rin_icu_client_call(rin_icu_client_t* client,
                                         response_payload,
                                         response.payload_len)) {
         free(response_payload);
-        rin_icu_client_close(client);
+        close(internal->fd);
+        internal->fd = -1;
+        rin_icu_unlock();
         return RIN_ICU_STATUS_DATA_ERROR;
     }
 
@@ -501,6 +543,7 @@ static int rin_icu_client_call(rin_icu_client_t* client,
     } else if (response_payload) {
         free(response_payload);
     }
+    rin_icu_unlock();
     return response.status;
 }
 
@@ -731,23 +774,37 @@ static int rin_icu_destroy_handle(rin_icu_client_t* client, rin_icu_handle_t han
 
 void rin_icu_client_init(rin_icu_client_t* client)
 {
-    if (client) rin_icu_reset_client(client);
+    if (client) {
+        rin_icu_lock();
+        rin_icu_reset_client(client);
+        rin_icu_unlock();
+    }
 }
 
 int rin_icu_client_open(rin_icu_client_t* client)
 {
     rin_icu_client_internal_t* internal;
     if (!client) return RIN_ICU_STATUS_INVALID;
+    rin_icu_lock();
     internal = rin_icu_client_internal(client);
     if (!internal || internal->state_magic != RIN_ICU_CLIENT_STATE_MAGIC) {
-        rin_icu_client_init(client);
+        rin_icu_reset_client(client);
         internal = rin_icu_client_internal(client);
     }
-    if (internal->fd >= 0) return RIN_ICU_STATUS_OK;
+    if (!internal) {
+        rin_icu_unlock();
+        return RIN_ICU_STATUS_INVALID;
+    }
+    if (internal->fd >= 0) {
+        rin_icu_unlock();
+        return RIN_ICU_STATUS_OK;
+    }
     internal->fd = rin_icu_connect_with_autostart();
     if (internal->fd < 0) {
+        rin_icu_unlock();
         return RIN_ICU_STATUS_IO_ERROR;
     }
+    rin_icu_unlock();
     return RIN_ICU_STATUS_OK;
 }
 
@@ -757,20 +814,29 @@ void rin_icu_client_close(rin_icu_client_t* client)
     if (!client) {
         return;
     }
+    rin_icu_lock();
     internal = rin_icu_client_internal(client);
     if (!internal || internal->state_magic != RIN_ICU_CLIENT_STATE_MAGIC) {
-        rin_icu_client_init(client);
+        rin_icu_reset_client(client);
+        rin_icu_unlock();
         return;
     }
     if (internal->fd >= 0) close(internal->fd);
     rin_icu_reset_client(client);
+    rin_icu_unlock();
 }
 
 int rin_icu_client_is_open(const rin_icu_client_t* client)
 {
-    const rin_icu_client_internal_t* internal = rin_icu_client_internal_const(client);
-    return internal && internal->state_magic == RIN_ICU_CLIENT_STATE_MAGIC &&
-           internal->fd >= 0;
+    const rin_icu_client_internal_t* internal;
+    int result;
+    if (!client) return 0;
+    rin_icu_lock();
+    internal = rin_icu_client_internal_const(client);
+    result = internal && internal->state_magic == RIN_ICU_CLIENT_STATE_MAGIC &&
+             internal->fd >= 0;
+    rin_icu_unlock();
+    return result;
 }
 
 int rin_icu_locale_canonicalize(rin_icu_client_t* client,
