@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: MIT */
 #include <assert.h>
+#include <errno.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <fcntl.h>
 #include <unistd.h>
 
 /* Include the implementation so the host-only test can exercise private
@@ -23,6 +25,7 @@ int main(void)
     RinIcuBulkBytesResponse inner;
     RinIcuCompareResponse compare;
     int timeout_pair[2];
+    int reinit_pair[2];
     struct timeval receive_timeout;
     struct timeval send_timeout;
     char text_output[8];
@@ -42,6 +45,14 @@ int main(void)
     assert(internal->next_request_id == 1u);
     assert(rin_icu_next_request_id(internal) == 1u);
     assert(!rin_icu_status_valid(-999));
+
+    assert(socketpair(AF_UNIX, SOCK_STREAM, 0, reinit_pair) == 0);
+    internal->fd = reinit_pair[0];
+    rin_icu_client_init(&client);
+    errno = 0;
+    assert(fcntl(reinit_pair[0], F_GETFD) == -1 && errno == EBADF);
+    close(reinit_pair[1]);
+    internal = rin_icu_client_internal(&client);
 
     memset(text_payload, 0, sizeof(text_payload));
     ((RinIcuBytesResponse*)text_payload)->data_len = 3u;

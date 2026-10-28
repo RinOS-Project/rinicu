@@ -776,6 +776,19 @@ void rin_icu_client_init(rin_icu_client_t* client)
 {
     if (client) {
         rin_icu_lock();
+        {
+            rin_icu_client_internal_t* internal =
+                rin_icu_client_internal(client);
+            /* init is also a safe reinitialization entry point.  Only close
+             * a descriptor when the storage contains a live client state;
+             * callers are allowed to pass zeroed or otherwise uninitialized
+             * public storage here. */
+            if (internal != NULL &&
+                internal->state_magic == RIN_ICU_CLIENT_STATE_MAGIC &&
+                internal->fd >= 0) {
+                close(internal->fd);
+            }
+        }
         rin_icu_reset_client(client);
         rin_icu_unlock();
     }
