@@ -22,6 +22,10 @@
 
 enum {
     RIN_ICU_MAX_IO_EINTR = 32u,
+    /* A wedged caller must not leave every globalization entry point blocked
+     * forever behind the process-wide client stream lock.  Lock failure is
+     * reported as a transport failure and the client state remains untouched. */
+    RIN_ICU_CLIENT_LOCK_ATTEMPTS = 1024u,
     /* Keep the client-side budget aligned with rinicud's idle session
      * lifetime.  A service that stops making progress must not leave a
      * managed caller blocked forever in a blocking socket operation. */
@@ -37,11 +41,15 @@ enum {
  * also share a client instance across PAL entry points. */
 static atomic_flag g_rin_icu_client_lock = ATOMIC_FLAG_INIT;
 
-static void rin_icu_lock(void)
+static int rin_icu_lock(void)
 {
-    while (atomic_flag_test_and_set_explicit(&g_rin_icu_client_lock,
-                                              memory_order_acquire)) {
+    unsigned attempt;
+    for (attempt = 0u; attempt < RIN_ICU_CLIENT_LOCK_ATTEMPTS; ++attempt) {
+        if (!atomic_flag_test_and_set_explicit(&g_rin_icu_client_lock,
+                                                memory_order_acquire))
+            return 1;
     }
+    return 0;
 }
 
 static void rin_icu_unlock(void)
@@ -451,7 +459,9 @@ static int rin_icu_client_call(rin_icu_client_t* client,
         return RIN_ICU_STATUS_INVALID;
     }
 
-    rin_icu_lock();
+    if (!rin_icu_lock()) {
+        return RIN_ICU_STATUS_IO_ERROR;
+    }
     internal = rin_icu_client_internal(client);
     if (!internal || internal->state_magic != RIN_ICU_CLIENT_STATE_MAGIC ||
         internal->fd < 0) {
@@ -775,7 +785,9 @@ static int rin_icu_destroy_handle(rin_icu_client_t* client, rin_icu_handle_t han
 void rin_icu_client_init(rin_icu_client_t* client)
 {
     if (client) {
-        rin_icu_lock();
+        if (!rin_icu_lock()) {
+            return;
+        }
         {
             rin_icu_client_internal_t* internal =
                 rin_icu_client_internal(client);
@@ -798,7 +810,7 @@ int rin_icu_client_open(rin_icu_client_t* client)
 {
     rin_icu_client_internal_t* internal;
     if (!client) return RIN_ICU_STATUS_INVALID;
-    rin_icu_lock();
+    if (!rin_icu_lock()) return RIN_ICU_STATUS_IO_ERROR;
     internal = rin_icu_client_internal(client);
     if (!internal || internal->state_magic != RIN_ICU_CLIENT_STATE_MAGIC) {
         rin_icu_reset_client(client);
@@ -827,7 +839,7 @@ void rin_icu_client_close(rin_icu_client_t* client)
     if (!client) {
         return;
     }
-    rin_icu_lock();
+    if (!rin_icu_lock()) return;
     internal = rin_icu_client_internal(client);
     if (!internal || internal->state_magic != RIN_ICU_CLIENT_STATE_MAGIC) {
         rin_icu_reset_client(client);
@@ -844,7 +856,7 @@ int rin_icu_client_is_open(const rin_icu_client_t* client)
     const rin_icu_client_internal_t* internal;
     int result;
     if (!client) return 0;
-    rin_icu_lock();
+    if (!rin_icu_lock()) return 0;
     internal = rin_icu_client_internal_const(client);
     result = internal && internal->state_magic == RIN_ICU_CLIENT_STATE_MAGIC &&
              internal->fd >= 0;
