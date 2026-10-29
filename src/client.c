@@ -20,6 +20,11 @@
 
 enum {
     RIN_ICU_MAX_IO_EINTR = 32u,
+    /* A wedged caller must not leave every globalization entry point blocked
+     * forever behind either the initialization or per-client operation lock.
+     * Lock failure is reported as a transport failure and leaves the client
+     * state untouched. */
+    RIN_ICU_CLIENT_LOCK_ATTEMPTS = 1024u,
     /* Keep the client-side budget aligned with rinicud's idle session
      * lifetime.  A service that stops making progress must not leave a
      * managed caller blocked forever in a blocking socket operation. */
@@ -31,19 +36,6 @@ enum {
  * during service I/O. */
 static atomic_flag g_rin_icu_client_init_lock = ATOMIC_FLAG_INIT;
 
-static void rin_icu_client_bootstrap_lock(void)
-{
-    while (atomic_flag_test_and_set_explicit(&g_rin_icu_client_init_lock,
-                                              memory_order_acquire)) {
-    }
-}
-
-static void rin_icu_client_bootstrap_unlock(void)
-{
-    atomic_flag_clear_explicit(&g_rin_icu_client_init_lock,
-                               memory_order_release);
-}
-
 static void rin_icu_client_lock_pause(void)
 {
     struct timespec delay;
@@ -53,17 +45,36 @@ static void rin_icu_client_lock_pause(void)
     }
 }
 
+static int rin_icu_client_bootstrap_lock(void)
+{
+    unsigned attempt;
+    for (attempt = 0u; attempt < RIN_ICU_CLIENT_LOCK_ATTEMPTS; ++attempt) {
+        if (!atomic_flag_test_and_set_explicit(&g_rin_icu_client_init_lock,
+                                                memory_order_acquire))
+            return 1;
+        rin_icu_client_lock_pause();
+    }
+    return 0;
+}
+
+static void rin_icu_client_bootstrap_unlock(void)
+{
+    atomic_flag_clear_explicit(&g_rin_icu_client_init_lock,
+                               memory_order_release);
+}
+
 static rin_icu_client_internal_t*
 rin_icu_client_lock(rin_icu_client_t* client, int initialize)
 {
     rin_icu_client_internal_t* internal;
     uint32_t state_magic;
+    unsigned attempt;
     if (!client) return NULL;
     internal = rin_icu_client_internal(client);
     state_magic = __atomic_load_n(&internal->state_magic, __ATOMIC_ACQUIRE);
     if (state_magic != RIN_ICU_CLIENT_STATE_MAGIC) {
         if (!initialize) return NULL;
-        rin_icu_client_bootstrap_lock();
+        if (!rin_icu_client_bootstrap_lock()) return NULL;
         state_magic = __atomic_load_n(&internal->state_magic,
                                       __ATOMIC_ACQUIRE);
         if (state_magic != RIN_ICU_CLIENT_STATE_MAGIC) {
@@ -79,15 +90,22 @@ rin_icu_client_lock(rin_icu_client_t* client, int initialize)
     internal = rin_icu_client_internal(client);
     if (__atomic_load_n(&internal->operation_lock, __ATOMIC_RELAXED) > 1u)
         return NULL;
-    while (__atomic_exchange_n(&internal->operation_lock, 1u,
-                               __ATOMIC_ACQUIRE) != 0u)
+    for (attempt = 0u; attempt < RIN_ICU_CLIENT_LOCK_ATTEMPTS; ++attempt) {
+        uint32_t expected = 0u;
+        if (__atomic_compare_exchange_n(&internal->operation_lock, &expected,
+                                        1u, 0, __ATOMIC_ACQUIRE,
+                                        __ATOMIC_RELAXED)) {
+            if (__atomic_load_n(&internal->state_magic, __ATOMIC_ACQUIRE) !=
+                RIN_ICU_CLIENT_STATE_MAGIC) {
+                __atomic_store_n(&internal->operation_lock, 0u,
+                                 __ATOMIC_RELEASE);
+                return NULL;
+            }
+            return internal;
+        }
         rin_icu_client_lock_pause();
-    if (__atomic_load_n(&internal->state_magic, __ATOMIC_ACQUIRE) !=
-        RIN_ICU_CLIENT_STATE_MAGIC) {
-        __atomic_store_n(&internal->operation_lock, 0u, __ATOMIC_RELEASE);
-        return NULL;
     }
-    return internal;
+    return NULL;
 }
 
 static void rin_icu_client_unlock(rin_icu_client_internal_t* internal)
