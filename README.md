@@ -43,7 +43,7 @@ and is never reused.
 | Supported API | include/rinicu/rinicu.h/.hpp plus data_blob.h, tzdb_blob.h, and data_policy.h. |
 | Unsupported API | Application clients cannot reload timezone catalogs; full ICU API parity and service administration are outside this client. |
 | ownership | Caller owns client storage and initializes before open; closing invalidates all connection-scoped handles. |
-| thread-safety | Use a client from one serialized owner at a time unless a specific API permits concurrent calls. |
+| thread-safety | Calls on one client are serialized internally to preserve its request/response stream. Distinct clients progress independently. Closing or reinitializing a client waits for an operation already using that client. |
 | limits | Protocol records and data accesses are bounded by RinOS-SDK ABI and declared blob policies. |
 | errors | RinIcuStatus reports invalid handles, missing data, transport/protocol errors, and service failures. Text/byte response helpers clear caller output before malformed or insufficient-capacity failures; a required length may still be reported for a retry. |
 | ABI stability | Wire protocol ABI v2 is defined by RinOS-SDK; records are versioned. |

@@ -14,15 +14,19 @@ typedef struct rin_icu_client_internal {
     uint32_t state_magic;
     int32_t fd;
     uint32_t next_request_id;
-    uint32_t reserved0;
+    uint32_t operation_lock;
 } rin_icu_client_internal_t;
 
 #if defined(__cplusplus)
 static_assert(sizeof(rin_icu_client_internal_t) <= RIN_ICU_CLIENT_STORAGE_SIZE,
               "RinICU internal client exceeds public storage");
+static_assert(alignof(rin_icu_client_internal_t) <= alignof(uintptr_t),
+              "RinICU internal client exceeds public storage alignment");
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 _Static_assert(sizeof(rin_icu_client_internal_t) <= RIN_ICU_CLIENT_STORAGE_SIZE,
                "RinICU internal client exceeds public storage");
+_Static_assert(_Alignof(rin_icu_client_internal_t) <= _Alignof(uintptr_t),
+               "RinICU internal client exceeds public storage alignment");
 #endif
 
 static inline rin_icu_client_internal_t*
