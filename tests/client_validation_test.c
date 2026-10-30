@@ -28,6 +28,7 @@ int main(void)
     int reinit_pair[2];
     struct timeval receive_timeout;
     struct timeval send_timeout;
+    volatile uint32_t wait_word = 0u;
     char text_output[8];
     uint8_t byte_output[8];
     size_t output_length = SIZE_MAX;
@@ -45,6 +46,11 @@ int main(void)
     assert(internal->next_request_id == 1u);
     assert(rin_icu_next_request_id(internal) == 1u);
     assert(!rin_icu_status_valid(-999));
+    assert(rin_icu_status_valid(RIN_ICU_STATUS_BUSY));
+    /* A mismatched futex value must return without sleeping; notify is safe
+     * even when there are no waiters. */
+    assert(rin_icu_atomic_wait_u32(&wait_word, 1u, NULL) == 0);
+    assert(rin_icu_atomic_notify_all_u32(&wait_word) >= 0);
 
     assert(socketpair(AF_UNIX, SOCK_STREAM, 0, reinit_pair) == 0);
     internal->fd = reinit_pair[0];

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 #include "client_internal.h"
 #include "service_identity.h"
+#include "atomic_wait.h"
 
 #ifndef RIN_ICU_ENABLE_AUTOSTART
 #define RIN_ICU_ENABLE_AUTOSTART 0
@@ -9,7 +10,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
-#include <stdatomic.h>
 #include <string.h>
 #include <time.h>
 #include <sys/socket.h>
@@ -20,11 +20,10 @@
 
 enum {
     RIN_ICU_MAX_IO_EINTR = 32u,
-    /* A wedged caller must not leave every globalization entry point blocked
-     * forever behind either the initialization or per-client operation lock.
-     * Lock failure is reported as a transport failure and leaves the client
-     * state untouched. */
-    RIN_ICU_CLIENT_LOCK_ATTEMPTS = 1024u,
+    /* A lock owner that stops making progress must not hold a managed caller
+     * forever.  The wait is sleepable and is woken by unlock; this is the
+     * total budget, not a count of polling sleeps. */
+    RIN_ICU_CLIENT_LOCK_TIMEOUT_MS = 1000u,
     /* Keep the client-side budget aligned with rinicud's idle session
      * lifetime.  A service that stops making progress must not leave a
      * managed caller blocked forever in a blocking socket operation. */
@@ -34,33 +33,59 @@ enum {
 /* The bootstrap lock only serializes first initialization of uninitialized
  * caller storage. Live requests use their own lock and never hold this lock
  * during service I/O. */
-static atomic_flag g_rin_icu_client_init_lock = ATOMIC_FLAG_INIT;
+static uint32_t g_rin_icu_client_init_lock;
 
-static void rin_icu_client_lock_pause(void)
+static int rin_icu_client_monotonic_ms(uint64_t* out)
 {
-    struct timespec delay;
-    delay.tv_sec = 0;
-    delay.tv_nsec = 1000000L;
-    while (nanosleep(&delay, &delay) != 0 && errno == EINTR) {
-    }
+    struct timespec now;
+    if (!out || clock_gettime(CLOCK_MONOTONIC, &now) != 0 ||
+        now.tv_sec < 0 || (uint64_t)now.tv_sec > UINT64_MAX / 1000u)
+        return 0;
+    *out = (uint64_t)now.tv_sec * 1000u +
+           (uint64_t)now.tv_nsec / 1000000u;
+    return 1;
+}
+
+static int rin_icu_client_wait_for_lock(volatile uint32_t* word,
+                                        uint32_t expected,
+                                        uint64_t deadline_ms)
+{
+    uint64_t now_ms;
+    uint64_t remaining_ms;
+    struct timespec timeout;
+    if (!word || !rin_icu_client_monotonic_ms(&now_ms) ||
+        now_ms >= deadline_ms)
+        return 0;
+    remaining_ms = deadline_ms - now_ms;
+    timeout.tv_sec = (time_t)(remaining_ms / 1000u);
+    timeout.tv_nsec = (long)((remaining_ms % 1000u) * 1000000u);
+    return rin_icu_atomic_wait_u32(word, expected, &timeout) == 0;
 }
 
 static int rin_icu_client_bootstrap_lock(void)
 {
-    unsigned attempt;
-    for (attempt = 0u; attempt < RIN_ICU_CLIENT_LOCK_ATTEMPTS; ++attempt) {
-        if (!atomic_flag_test_and_set_explicit(&g_rin_icu_client_init_lock,
-                                                memory_order_acquire))
+    uint64_t now_ms;
+    uint64_t deadline_ms;
+    if (!rin_icu_client_monotonic_ms(&now_ms) ||
+        now_ms > UINT64_MAX - RIN_ICU_CLIENT_LOCK_TIMEOUT_MS)
+        return 0;
+    deadline_ms = now_ms + RIN_ICU_CLIENT_LOCK_TIMEOUT_MS;
+    for (;;) {
+        uint32_t expected = 0u;
+        if (__atomic_compare_exchange_n(&g_rin_icu_client_init_lock, &expected,
+                                        1u, 0, __ATOMIC_ACQUIRE,
+                                        __ATOMIC_RELAXED))
             return 1;
-        rin_icu_client_lock_pause();
+        if (!rin_icu_client_wait_for_lock(&g_rin_icu_client_init_lock, 1u,
+                                          deadline_ms))
+            return 0;
     }
-    return 0;
 }
 
 static void rin_icu_client_bootstrap_unlock(void)
 {
-    atomic_flag_clear_explicit(&g_rin_icu_client_init_lock,
-                               memory_order_release);
+    __atomic_store_n(&g_rin_icu_client_init_lock, 0u, __ATOMIC_RELEASE);
+    (void)rin_icu_atomic_notify_all_u32(&g_rin_icu_client_init_lock);
 }
 
 static rin_icu_client_internal_t*
@@ -68,7 +93,8 @@ rin_icu_client_lock(rin_icu_client_t* client, int initialize)
 {
     rin_icu_client_internal_t* internal;
     uint32_t state_magic;
-    unsigned attempt;
+    uint64_t now_ms;
+    uint64_t deadline_ms;
     if (!client) return NULL;
     internal = rin_icu_client_internal(client);
     state_magic = __atomic_load_n(&internal->state_magic, __ATOMIC_ACQUIRE);
@@ -88,9 +114,13 @@ rin_icu_client_lock(rin_icu_client_t* client, int initialize)
         rin_icu_client_bootstrap_unlock();
     }
     internal = rin_icu_client_internal(client);
-    if (__atomic_load_n(&internal->operation_lock, __ATOMIC_RELAXED) > 1u)
+    if (__atomic_load_n(&internal->operation_lock, __ATOMIC_ACQUIRE) > 1u)
         return NULL;
-    for (attempt = 0u; attempt < RIN_ICU_CLIENT_LOCK_ATTEMPTS; ++attempt) {
+    if (!rin_icu_client_monotonic_ms(&now_ms) ||
+        now_ms > UINT64_MAX - RIN_ICU_CLIENT_LOCK_TIMEOUT_MS)
+        return NULL;
+    deadline_ms = now_ms + RIN_ICU_CLIENT_LOCK_TIMEOUT_MS;
+    for (;;) {
         uint32_t expected = 0u;
         if (__atomic_compare_exchange_n(&internal->operation_lock, &expected,
                                         1u, 0, __ATOMIC_ACQUIRE,
@@ -103,15 +133,34 @@ rin_icu_client_lock(rin_icu_client_t* client, int initialize)
             }
             return internal;
         }
-        rin_icu_client_lock_pause();
+        if (__atomic_load_n(&internal->operation_lock, __ATOMIC_ACQUIRE) > 1u)
+            return NULL;
+        if (!rin_icu_client_wait_for_lock(&internal->operation_lock, 1u,
+                                          deadline_ms))
+            return NULL;
     }
-    return NULL;
 }
 
 static void rin_icu_client_unlock(rin_icu_client_internal_t* internal)
 {
     if (internal)
         __atomic_store_n(&internal->operation_lock, 0u, __ATOMIC_RELEASE);
+    if (internal)
+        (void)rin_icu_atomic_notify_all_u32(&internal->operation_lock);
+}
+
+static int rin_icu_client_lock_status(const rin_icu_client_t* client)
+{
+    const rin_icu_client_internal_t* internal;
+    if (!client) return RIN_ICU_STATUS_INVALID;
+    internal = rin_icu_client_internal_const(client);
+    if (!internal ||
+        __atomic_load_n(&internal->state_magic, __ATOMIC_ACQUIRE) !=
+            RIN_ICU_CLIENT_STATE_MAGIC)
+        return RIN_ICU_STATUS_INVALID;
+    return __atomic_load_n(&internal->operation_lock, __ATOMIC_ACQUIRE) == 1u
+               ? RIN_ICU_STATUS_BUSY
+               : RIN_ICU_STATUS_INVALID;
 }
 
 #if RIN_ICU_ENABLE_AUTOSTART
@@ -307,6 +356,7 @@ static int rin_icu_status_valid(int32_t status)
     case RIN_ICU_STATUS_BAD_HANDLE:
     case RIN_ICU_STATUS_NO_SPACE:
     case RIN_ICU_STATUS_DATA_ERROR:
+    case RIN_ICU_STATUS_BUSY:
         return 1;
     default:
         return 0;
@@ -514,7 +564,10 @@ static int rin_icu_client_call(rin_icu_client_t* client,
     }
 
     internal = rin_icu_client_lock(client, 0);
-    if (!internal || internal->fd < 0) {
+    if (!internal) {
+        return rin_icu_client_lock_status(client);
+    }
+    if (internal->fd < 0) {
         rin_icu_client_unlock(internal);
         return RIN_ICU_STATUS_INVALID;
     }
@@ -853,7 +906,7 @@ int rin_icu_client_open(rin_icu_client_t* client)
     rin_icu_client_internal_t* internal;
     if (!client) return RIN_ICU_STATUS_INVALID;
     internal = rin_icu_client_lock(client, 1);
-    if (!internal) return RIN_ICU_STATUS_INVALID;
+    if (!internal) return rin_icu_client_lock_status(client);
     if (internal->fd >= 0) {
         rin_icu_client_unlock(internal);
         return RIN_ICU_STATUS_OK;
