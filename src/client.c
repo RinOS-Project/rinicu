@@ -20,14 +20,17 @@
 
 enum {
     RIN_ICU_MAX_IO_EINTR = 32u,
+    /* Keep the operation lock deadline at least as long as one managed
+     * client I/O budget.  close/reinitialize/open/call may therefore wait
+     * for the in-flight request or report the same explicit deadline. */
+    RIN_ICU_CLIENT_IO_TIMEOUT_MS = 30000u,
     /* A lock owner that stops making progress must not hold a managed caller
      * forever.  The wait is sleepable and is woken by unlock; this is the
      * total budget, not a count of polling sleeps. */
-    RIN_ICU_CLIENT_LOCK_TIMEOUT_MS = 1000u,
-    /* Keep the client-side budget aligned with rinicud's idle session
-     * lifetime.  A service that stops making progress must not leave a
-     * managed caller blocked forever in a blocking socket operation. */
-    RIN_ICU_CLIENT_IO_TIMEOUT_MS = 30000u,
+    RIN_ICU_CLIENT_LOCK_TIMEOUT_MS = RIN_ICU_CLIENT_IO_TIMEOUT_MS,
+    /* Bootstrap only protects a short storage initialization critical
+     * section; it must not inherit the service I/O wait budget. */
+    RIN_ICU_CLIENT_BOOTSTRAP_TIMEOUT_MS = 1000u,
 };
 
 /* The bootstrap lock only serializes first initialization of uninitialized
@@ -67,9 +70,9 @@ static int rin_icu_client_bootstrap_lock(void)
     uint64_t now_ms;
     uint64_t deadline_ms;
     if (!rin_icu_client_monotonic_ms(&now_ms) ||
-        now_ms > UINT64_MAX - RIN_ICU_CLIENT_LOCK_TIMEOUT_MS)
+        now_ms > UINT64_MAX - RIN_ICU_CLIENT_BOOTSTRAP_TIMEOUT_MS)
         return 0;
-    deadline_ms = now_ms + RIN_ICU_CLIENT_LOCK_TIMEOUT_MS;
+    deadline_ms = now_ms + RIN_ICU_CLIENT_BOOTSTRAP_TIMEOUT_MS;
     for (;;) {
         uint32_t expected = 0u;
         if (__atomic_compare_exchange_n(&g_rin_icu_client_init_lock, &expected,
@@ -89,18 +92,23 @@ static void rin_icu_client_bootstrap_unlock(void)
 }
 
 static rin_icu_client_internal_t*
-rin_icu_client_lock(rin_icu_client_t* client, int initialize)
+rin_icu_client_lock(rin_icu_client_t* client, int initialize,
+                    int* failure_status)
 {
     rin_icu_client_internal_t* internal;
     uint32_t state_magic;
     uint64_t now_ms;
     uint64_t deadline_ms;
+    if (failure_status) *failure_status = RIN_ICU_STATUS_INVALID;
     if (!client) return NULL;
     internal = rin_icu_client_internal(client);
     state_magic = __atomic_load_n(&internal->state_magic, __ATOMIC_ACQUIRE);
     if (state_magic != RIN_ICU_CLIENT_STATE_MAGIC) {
         if (!initialize) return NULL;
-        if (!rin_icu_client_bootstrap_lock()) return NULL;
+        if (!rin_icu_client_bootstrap_lock()) {
+            if (failure_status) *failure_status = RIN_ICU_STATUS_BUSY;
+            return NULL;
+        }
         state_magic = __atomic_load_n(&internal->state_magic,
                                       __ATOMIC_ACQUIRE);
         if (state_magic != RIN_ICU_CLIENT_STATE_MAGIC) {
@@ -136,8 +144,10 @@ rin_icu_client_lock(rin_icu_client_t* client, int initialize)
         if (__atomic_load_n(&internal->operation_lock, __ATOMIC_ACQUIRE) > 1u)
             return NULL;
         if (!rin_icu_client_wait_for_lock(&internal->operation_lock, 1u,
-                                          deadline_ms))
+                                          deadline_ms)) {
+            if (failure_status) *failure_status = RIN_ICU_STATUS_BUSY;
             return NULL;
+        }
     }
 }
 
@@ -147,20 +157,6 @@ static void rin_icu_client_unlock(rin_icu_client_internal_t* internal)
         __atomic_store_n(&internal->operation_lock, 0u, __ATOMIC_RELEASE);
     if (internal)
         (void)rin_icu_atomic_notify_all_u32(&internal->operation_lock);
-}
-
-static int rin_icu_client_lock_status(const rin_icu_client_t* client)
-{
-    const rin_icu_client_internal_t* internal;
-    if (!client) return RIN_ICU_STATUS_INVALID;
-    internal = rin_icu_client_internal_const(client);
-    if (!internal ||
-        __atomic_load_n(&internal->state_magic, __ATOMIC_ACQUIRE) !=
-            RIN_ICU_CLIENT_STATE_MAGIC)
-        return RIN_ICU_STATUS_INVALID;
-    return __atomic_load_n(&internal->operation_lock, __ATOMIC_ACQUIRE) == 1u
-               ? RIN_ICU_STATUS_BUSY
-               : RIN_ICU_STATUS_INVALID;
 }
 
 #if RIN_ICU_ENABLE_AUTOSTART
@@ -563,9 +559,12 @@ static int rin_icu_client_call(rin_icu_client_t* client,
         return RIN_ICU_STATUS_INVALID;
     }
 
-    internal = rin_icu_client_lock(client, 0);
-    if (!internal) {
-        return rin_icu_client_lock_status(client);
+    {
+        int lock_status = RIN_ICU_STATUS_INVALID;
+        internal = rin_icu_client_lock(client, 0, &lock_status);
+        if (!internal) {
+            return lock_status;
+        }
     }
     if (internal->fd < 0) {
         rin_icu_client_unlock(internal);
@@ -889,7 +888,7 @@ void rin_icu_client_init(rin_icu_client_t* client)
 {
     rin_icu_client_internal_t* internal;
     if (client) {
-        internal = rin_icu_client_lock(client, 1);
+        internal = rin_icu_client_lock(client, 1, NULL);
         if (!internal) return;
         /* init is also a safe reinitialization entry point.  Only close a
          * descriptor after caller-owned storage has a live state. */
@@ -904,9 +903,10 @@ void rin_icu_client_init(rin_icu_client_t* client)
 int rin_icu_client_open(rin_icu_client_t* client)
 {
     rin_icu_client_internal_t* internal;
+    int lock_status = RIN_ICU_STATUS_INVALID;
     if (!client) return RIN_ICU_STATUS_INVALID;
-    internal = rin_icu_client_lock(client, 1);
-    if (!internal) return rin_icu_client_lock_status(client);
+    internal = rin_icu_client_lock(client, 1, &lock_status);
+    if (!internal) return lock_status;
     if (internal->fd >= 0) {
         rin_icu_client_unlock(internal);
         return RIN_ICU_STATUS_OK;
@@ -926,7 +926,7 @@ void rin_icu_client_close(rin_icu_client_t* client)
     if (!client) {
         return;
     }
-    internal = rin_icu_client_lock(client, 1);
+    internal = rin_icu_client_lock(client, 1, NULL);
     if (!internal) return;
     if (internal->fd >= 0) close(internal->fd);
     rin_icu_reset_client(client);
@@ -938,7 +938,7 @@ int rin_icu_client_is_open(const rin_icu_client_t* client)
     rin_icu_client_internal_t* internal;
     int result;
     if (!client) return 0;
-    internal = rin_icu_client_lock((rin_icu_client_t*)(void*)client, 0);
+    internal = rin_icu_client_lock((rin_icu_client_t*)(void*)client, 0, NULL);
     if (!internal) return 0;
     result = internal->fd >= 0;
     rin_icu_client_unlock(internal);
