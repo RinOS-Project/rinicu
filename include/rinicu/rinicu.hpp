@@ -546,6 +546,26 @@ inline int time_zone_local_offsets(Client& client, std::string const& time_zone,
                                            in_dst, out_capacity, &out_count);
 }
 
+inline int time_zone_offset_seconds_v2(Client& client,
+                                        std::string const& time_zone,
+                                        long long epoch_ms,
+                                        int32_t& offset_seconds,
+                                        int& in_dst)
+{
+    return rin_icu_time_zone_offset_seconds_v2(
+        client.raw(), time_zone.c_str(), epoch_ms, &offset_seconds, &in_dst);
+}
+
+inline int time_zone_local_offsets_seconds_v2(
+    Client& client, std::string const& time_zone, long long local_epoch_ms,
+    int32_t* offset_seconds, int* in_dst, size_t out_capacity,
+    size_t& out_count)
+{
+    return rin_icu_time_zone_local_offsets_seconds_v2(
+        client.raw(), time_zone.c_str(), local_epoch_ms, offset_seconds,
+        in_dst, out_capacity, &out_count);
+}
+
 }
 
 #endif

@@ -468,6 +468,24 @@ static int rin_icu_response_payload_valid(uint32_t command,
     case RIN_ICU_CMD_TIME_ZONE_OFFSET_V1:
         return payload_len == sizeof(RinIcuTimeZoneOffsetResponse) && payload &&
                ((const RinIcuTimeZoneOffsetResponse*)payload)->in_dst <= 1u;
+    case RIN_ICU_CMD_TIME_ZONE_OFFSET_SECONDS_V2:
+        return payload_len ==
+                   sizeof(RinIcuTimeZoneOffsetSecondsResponseV2) && payload &&
+               ((const RinIcuTimeZoneOffsetSecondsResponseV2*)payload)->in_dst <=
+                   1u;
+    case RIN_ICU_CMD_TIME_ZONE_LOCAL_OFFSETS_SECONDS_V2: {
+        const RinIcuTimeZoneLocalOffsetsSecondsResponseV2* response;
+        if (payload_len !=
+                sizeof(RinIcuTimeZoneLocalOffsetsSecondsResponseV2) ||
+            payload == NULL)
+            return 0;
+        response = (const RinIcuTimeZoneLocalOffsetsSecondsResponseV2*)payload;
+        if (response->count > RIN_ICU_TIME_ZONE_LOCAL_OFFSET_MAX) return 0;
+        for (uint32_t index = 0u; index < response->count; ++index) {
+            if (response->offsets[index].in_dst > 1u) return 0;
+        }
+        return 1;
+    }
     case RIN_ICU_CMD_TIME_ZONE_TRANSITION_V1:
         return payload_len == sizeof(RinIcuTimeZoneTransitionResponse) && payload;
     case RIN_ICU_CMD_COLLATOR_CREATE_V1:
@@ -1975,6 +1993,118 @@ int rin_icu_time_zone_local_offsets(rin_icu_client_t* client,
                     }
                     if (out_in_dst) {
                         out_in_dst[index] = offsets_response->offsets[index].in_dst ? 1 : 0;
+                    }
+                }
+            }
+        }
+    }
+    free(payload);
+    return status;
+}
+
+int rin_icu_time_zone_offset_seconds_v2(rin_icu_client_t* client,
+                                         const char* time_zone,
+                                         int64_t epoch_ms,
+                                         int32_t* out_offset_seconds,
+                                         int* out_in_dst)
+{
+    RinIcuTimeZoneOffsetSecondsRequestV2 request;
+    RinIcuMsgHeader response;
+    unsigned char* payload = NULL;
+    size_t time_zone_len = rin_icu_strlen_c(time_zone);
+    uint32_t payload_len;
+    unsigned char* request_payload;
+    int status;
+    if (rin_icu_payload_size2(sizeof(request), time_zone_len, &payload_len) !=
+        RIN_ICU_STATUS_OK)
+        return RIN_ICU_STATUS_TOO_LARGE;
+    request_payload = (unsigned char*)malloc((size_t)payload_len);
+    if (request_payload == NULL) return RIN_ICU_STATUS_IO_ERROR;
+    memset(&request, 0, sizeof(request));
+    request.time_zone_len = (uint32_t)time_zone_len;
+    request.epoch_ms = epoch_ms;
+    memcpy(request_payload, &request, sizeof(request));
+    if (time_zone_len != 0u) {
+        memcpy(request_payload + sizeof(request), time_zone, time_zone_len);
+    }
+    status = rin_icu_client_call(
+        client, RIN_ICU_CMD_TIME_ZONE_OFFSET_SECONDS_V2, 0u, 0u,
+        request_payload, payload_len, &response, &payload);
+    free(request_payload);
+    if (status == RIN_ICU_STATUS_OK) {
+        const RinIcuTimeZoneOffsetSecondsResponseV2* offset_response;
+        if (payload == NULL || response.payload_len !=
+                sizeof(RinIcuTimeZoneOffsetSecondsResponseV2)) {
+            status = RIN_ICU_STATUS_DATA_ERROR;
+        } else {
+            offset_response =
+                (const RinIcuTimeZoneOffsetSecondsResponseV2*)payload;
+            if (out_offset_seconds != NULL)
+                *out_offset_seconds = offset_response->offset_seconds;
+            if (out_in_dst != NULL)
+                *out_in_dst = (int)offset_response->in_dst;
+        }
+    }
+    free(payload);
+    return status;
+}
+
+int rin_icu_time_zone_local_offsets_seconds_v2(
+    rin_icu_client_t* client, const char* time_zone, int64_t local_epoch_ms,
+    int32_t* out_offset_seconds, int* out_in_dst, size_t out_capacity,
+    size_t* out_count)
+{
+    RinIcuTimeZoneLocalOffsetsSecondsRequestV2 request;
+    RinIcuMsgHeader response;
+    unsigned char* payload = NULL;
+    size_t time_zone_len = rin_icu_strlen_c(time_zone);
+    uint32_t payload_len;
+    unsigned char* request_payload;
+    int status;
+    if (out_count != NULL) *out_count = 0u;
+    if (rin_icu_payload_size2(sizeof(request), time_zone_len, &payload_len) !=
+        RIN_ICU_STATUS_OK)
+        return RIN_ICU_STATUS_TOO_LARGE;
+    request_payload = (unsigned char*)malloc((size_t)payload_len);
+    if (request_payload == NULL) return RIN_ICU_STATUS_IO_ERROR;
+    memset(&request, 0, sizeof(request));
+    request.time_zone_len = (uint32_t)time_zone_len;
+    request.local_epoch_ms = local_epoch_ms;
+    memcpy(request_payload, &request, sizeof(request));
+    if (time_zone_len != 0u) {
+        memcpy(request_payload + sizeof(request), time_zone, time_zone_len);
+    }
+    status = rin_icu_client_call(
+        client, RIN_ICU_CMD_TIME_ZONE_LOCAL_OFFSETS_SECONDS_V2, 0u, 0u,
+        request_payload, payload_len, &response, &payload);
+    free(request_payload);
+    if (status == RIN_ICU_STATUS_OK) {
+        const RinIcuTimeZoneLocalOffsetsSecondsResponseV2* offsets_response;
+        if (payload == NULL || response.payload_len !=
+                sizeof(RinIcuTimeZoneLocalOffsetsSecondsResponseV2)) {
+            status = RIN_ICU_STATUS_DATA_ERROR;
+        } else {
+            offsets_response =
+                (const RinIcuTimeZoneLocalOffsetsSecondsResponseV2*)payload;
+            if (offsets_response->count >
+                RIN_ICU_TIME_ZONE_LOCAL_OFFSET_MAX) {
+                status = RIN_ICU_STATUS_DATA_ERROR;
+            } else if (offsets_response->count > out_capacity) {
+                if (out_count != NULL)
+                    *out_count = offsets_response->count;
+                status = RIN_ICU_STATUS_NO_SPACE;
+            } else {
+                if (out_count != NULL)
+                    *out_count = offsets_response->count;
+                for (uint32_t index = 0u;
+                     index < offsets_response->count; ++index) {
+                    if (out_offset_seconds != NULL) {
+                        out_offset_seconds[index] =
+                            offsets_response->offsets[index].offset_seconds;
+                    }
+                    if (out_in_dst != NULL) {
+                        out_in_dst[index] = (int)
+                            offsets_response->offsets[index].in_dst;
                     }
                 }
             }
