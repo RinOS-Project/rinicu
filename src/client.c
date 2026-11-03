@@ -1859,6 +1859,27 @@ int rin_icu_time_zone_current(rin_icu_client_t* client, char* dest, size_t dest_
     return rin_icu_call_text_no_payload(client, RIN_ICU_CMD_TIME_ZONE_CURRENT_V1, dest, dest_cap, out_len);
 }
 
+int rin_icu_time_zone_catalog(rin_icu_client_t* client, char* dest,
+                              size_t dest_cap, size_t* out_len)
+{
+    return rin_icu_call_text_no_payload(
+        client, RIN_ICU_CMD_TIME_ZONE_TZDB_CATALOG_V1, dest, dest_cap,
+        out_len);
+}
+
+int rin_icu_time_zone_reload(rin_icu_client_t* client)
+{
+    RinIcuMsgHeader response;
+    unsigned char* payload = NULL;
+    int status = rin_icu_client_call(
+        client, RIN_ICU_CMD_TIME_ZONE_RELOAD_V1, 0u, 0u, NULL, 0u,
+        &response, &payload);
+    if (status == RIN_ICU_STATUS_OK && response.payload_len != 0u)
+        status = RIN_ICU_STATUS_DATA_ERROR;
+    free(payload);
+    return status;
+}
+
 int rin_icu_time_zone_canonicalize(rin_icu_client_t* client,
                                    const char* time_zone,
                                    char* dest,

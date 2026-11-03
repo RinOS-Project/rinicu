@@ -10,3 +10,11 @@ metadata and fixed 32-byte transitions. Transition offsets are bounded to
 The validator checks exact file length, footer version/record sizes, metadata
 ranges, transition ranges, DST bits, and terminated zone/abbreviation fields.
 Malformed blobs are rejected before they become the active catalog.
+
+The generator also emits `rinicu_tzdata_version.txt` and
+`rinicu_tzdb_leaps.txt` beside the blob. The version must be a five-character
+IANA release identifier. Each leap-sidecar row is an effective POSIX midnight
+in seconds followed by `1` or `-1`; rows are strictly increasing and capped at
+128 entries. `rinicud` loads the version and signed leap table with the TZDB
+blob and returns them with zone aliases in one catalog snapshot. The build and
+media image must package all three files from the same generated directory.
