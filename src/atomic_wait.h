@@ -6,7 +6,8 @@
 #include <stdint.h>
 #include <time.h>
 
-#if defined(__rinos__)
+#if defined(__rinos__) || \
+    (defined(RIN_FREESTANDING) && defined(RIN_USERSPACE))
 #include "../../libc/rin_atomic_wait.h"
 #elif defined(__linux__)
 #include <linux/futex.h>
@@ -27,7 +28,8 @@ static inline int rin_icu_atomic_wait_u32(volatile uint32_t* address,
         errno = EINVAL;
         return -1;
     }
-#if defined(__rinos__)
+#if defined(__rinos__) || \
+    (defined(RIN_FREESTANDING) && defined(RIN_USERSPACE))
     return rin_atomic_wait_u32(address, expected, timeout);
 #elif defined(__linux__)
     {
@@ -54,7 +56,8 @@ static inline int rin_icu_atomic_notify_all_u32(volatile uint32_t* address)
         errno = EINVAL;
         return -1;
     }
-#if defined(__rinos__)
+#if defined(__rinos__) || \
+    (defined(RIN_FREESTANDING) && defined(RIN_USERSPACE))
     return rin_atomic_notify_all_u32(address);
 #elif defined(__linux__)
     {
