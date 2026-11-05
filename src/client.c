@@ -49,39 +49,52 @@ static int rin_icu_client_monotonic_ms(uint64_t* out)
     return 1;
 }
 
+/* Returns 1 after a wake/recheck opportunity, 0 at the explicit deadline,
+ * and -1 if the monotonic deadline source is unavailable.  Void lifecycle
+ * APIs pass bounded=0 and wait without a deadline because they cannot report
+ * a timeout to their caller. */
 static int rin_icu_client_wait_for_lock(volatile uint32_t* word,
                                         uint32_t expected,
-                                        uint64_t deadline_ms)
+                                        uint64_t deadline_ms, int bounded)
 {
-    uint64_t now_ms;
+    uint64_t now_ms = 0u;
     uint64_t remaining_ms;
     struct timespec timeout;
-    if (!word || !rin_icu_client_monotonic_ms(&now_ms) ||
-        now_ms >= deadline_ms)
-        return 0;
-    remaining_ms = deadline_ms - now_ms;
-    timeout.tv_sec = (time_t)(remaining_ms / 1000u);
-    timeout.tv_nsec = (long)((remaining_ms % 1000u) * 1000000u);
-    return rin_icu_atomic_wait_u32(word, expected, &timeout) == 0;
+    if (!word) return -1;
+    if (bounded) {
+        if (!rin_icu_client_monotonic_ms(&now_ms)) return -1;
+        if (now_ms >= deadline_ms) return 0;
+        remaining_ms = deadline_ms - now_ms;
+        timeout.tv_sec = (time_t)(remaining_ms / 1000u);
+        timeout.tv_nsec = (long)((remaining_ms % 1000u) * 1000000u);
+    }
+    if (rin_icu_atomic_wait_u32(word, expected,
+                                bounded ? &timeout : NULL) == 0)
+        return 1;
+    /* A transient wait backend error must not be converted to INVALID or
+     * trigger a tight retry loop. The caller still rechecks the lock word. */
+    timeout.tv_sec = 0;
+    timeout.tv_nsec = 1000000L;
+    while (nanosleep(&timeout, &timeout) != 0 && errno == EINTR) {
+    }
+    return 1;
 }
 
-static int rin_icu_client_bootstrap_lock(void)
+static int rin_icu_client_bootstrap_lock(int bounded,
+                                         uint64_t deadline_ms)
 {
-    uint64_t now_ms;
-    uint64_t deadline_ms;
-    if (!rin_icu_client_monotonic_ms(&now_ms) ||
-        now_ms > UINT64_MAX - RIN_ICU_CLIENT_BOOTSTRAP_TIMEOUT_MS)
-        return 0;
-    deadline_ms = now_ms + RIN_ICU_CLIENT_BOOTSTRAP_TIMEOUT_MS;
     for (;;) {
         uint32_t expected = 0u;
         if (__atomic_compare_exchange_n(&g_rin_icu_client_init_lock, &expected,
                                         1u, 0, __ATOMIC_ACQUIRE,
                                         __ATOMIC_RELAXED))
             return 1;
-        if (!rin_icu_client_wait_for_lock(&g_rin_icu_client_init_lock, 1u,
-                                          deadline_ms))
-            return 0;
+        {
+            const int wait_result = rin_icu_client_wait_for_lock(
+                &g_rin_icu_client_init_lock, 1u, deadline_ms, bounded);
+            if (wait_result == 0) return 0;
+            if (wait_result < 0) return -1;
+        }
     }
 }
 
@@ -99,16 +112,32 @@ rin_icu_client_lock(rin_icu_client_t* client, int initialize,
     uint32_t state_magic;
     uint64_t now_ms;
     uint64_t deadline_ms;
+    int bounded = failure_status != NULL;
     if (failure_status) *failure_status = RIN_ICU_STATUS_INVALID;
     if (!client) return NULL;
-    internal = rin_icu_client_internal(client);
-    state_magic = __atomic_load_n(&internal->state_magic, __ATOMIC_ACQUIRE);
-    if (state_magic != RIN_ICU_CLIENT_STATE_MAGIC) {
-        if (!initialize) return NULL;
-        if (!rin_icu_client_bootstrap_lock()) {
-            if (failure_status) *failure_status = RIN_ICU_STATUS_BUSY;
+    if (bounded && !rin_icu_client_monotonic_ms(&now_ms)) {
+        if (failure_status) *failure_status = RIN_ICU_STATUS_IO_ERROR;
+        return NULL;
+    }
+    deadline_ms = bounded
+        ? (now_ms > UINT64_MAX - RIN_ICU_CLIENT_BOOTSTRAP_TIMEOUT_MS
+               ? UINT64_MAX
+               : now_ms + RIN_ICU_CLIENT_BOOTSTRAP_TIMEOUT_MS)
+        : 0u;
+
+    if (initialize) {
+        /* Lifecycle entry points take the bootstrap lock before examining
+         * caller-owned opaque storage. This serializes concurrent first init
+         * and reinit without putting normal operations on a global lock. */
+        const int bootstrap_result = rin_icu_client_bootstrap_lock(
+            bounded, deadline_ms);
+        if (bootstrap_result != 1) {
+            if (failure_status)
+                *failure_status = bootstrap_result == 0
+                    ? RIN_ICU_STATUS_BUSY : RIN_ICU_STATUS_IO_ERROR;
             return NULL;
         }
+        internal = rin_icu_client_internal(client);
         state_magic = __atomic_load_n(&internal->state_magic,
                                       __ATOMIC_ACQUIRE);
         if (state_magic != RIN_ICU_CLIENT_STATE_MAGIC) {
@@ -120,14 +149,27 @@ rin_icu_client_lock(rin_icu_client_t* client, int initialize,
                              RIN_ICU_CLIENT_STATE_MAGIC, __ATOMIC_RELEASE);
         }
         rin_icu_client_bootstrap_unlock();
+    } else {
+        /* Non-lifecycle operations require the caller to have initialized
+         * the object first; after publication the magic is immutable. */
+        internal = rin_icu_client_internal(client);
+        state_magic = __atomic_load_n(&internal->state_magic,
+                                      __ATOMIC_ACQUIRE);
+        if (state_magic != RIN_ICU_CLIENT_STATE_MAGIC) return NULL;
     }
+
     internal = rin_icu_client_internal(client);
-    if (__atomic_load_n(&internal->operation_lock, __ATOMIC_ACQUIRE) > 1u)
+    if (__atomic_load_n(&internal->operation_lock, __ATOMIC_ACQUIRE) > 1u) {
+        if (failure_status) *failure_status = RIN_ICU_STATUS_INVALID;
         return NULL;
-    if (!rin_icu_client_monotonic_ms(&now_ms) ||
-        now_ms > UINT64_MAX - RIN_ICU_CLIENT_LOCK_TIMEOUT_MS)
+    }
+    if (bounded && (!rin_icu_client_monotonic_ms(&now_ms) ||
+                    now_ms > UINT64_MAX - RIN_ICU_CLIENT_LOCK_TIMEOUT_MS)) {
+        if (failure_status) *failure_status = RIN_ICU_STATUS_IO_ERROR;
         return NULL;
-    deadline_ms = now_ms + RIN_ICU_CLIENT_LOCK_TIMEOUT_MS;
+    }
+    deadline_ms = bounded
+        ? now_ms + RIN_ICU_CLIENT_LOCK_TIMEOUT_MS : 0u;
     for (;;) {
         uint32_t expected = 0u;
         if (__atomic_compare_exchange_n(&internal->operation_lock, &expected,
@@ -137,16 +179,25 @@ rin_icu_client_lock(rin_icu_client_t* client, int initialize,
                 RIN_ICU_CLIENT_STATE_MAGIC) {
                 __atomic_store_n(&internal->operation_lock, 0u,
                                  __ATOMIC_RELEASE);
+                (void)rin_icu_atomic_notify_all_u32(
+                    &internal->operation_lock);
                 return NULL;
             }
             return internal;
         }
-        if (__atomic_load_n(&internal->operation_lock, __ATOMIC_ACQUIRE) > 1u)
+        if (__atomic_load_n(&internal->operation_lock, __ATOMIC_ACQUIRE) > 1u) {
+            if (failure_status) *failure_status = RIN_ICU_STATUS_INVALID;
             return NULL;
-        if (!rin_icu_client_wait_for_lock(&internal->operation_lock, 1u,
-                                          deadline_ms)) {
-            if (failure_status) *failure_status = RIN_ICU_STATUS_BUSY;
-            return NULL;
+        }
+        {
+            const int wait_result = rin_icu_client_wait_for_lock(
+                &internal->operation_lock, 1u, deadline_ms, bounded);
+            if (wait_result != 1) {
+                if (failure_status)
+                    *failure_status = wait_result == 0
+                        ? RIN_ICU_STATUS_BUSY : RIN_ICU_STATUS_IO_ERROR;
+                return NULL;
+            }
         }
     }
 }
