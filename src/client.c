@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: MIT */
+#define RIN_POSIX_CLOSE_RUNTIME_IMPLEMENTATION 1
 #include "client_internal.h"
 #include "service_identity.h"
 #include "atomic_wait.h"
@@ -110,7 +111,7 @@ rin_icu_client_lock(rin_icu_client_t* client, int initialize,
 {
     rin_icu_client_internal_t* internal;
     uint32_t state_magic;
-    uint64_t now_ms;
+    uint64_t now_ms = 0u;
     uint64_t deadline_ms;
     int bounded = failure_status != NULL;
     if (failure_status) *failure_status = RIN_ICU_STATUS_INVALID;
@@ -1007,7 +1008,16 @@ int rin_icu_client_is_open(const rin_icu_client_t* client)
     rin_icu_client_internal_t* internal;
     int result;
     if (!client) return 0;
+    /* The operation lock is mutable synchronization state inside the opaque
+     * client, even though this query does not otherwise modify its contents. */
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wcast-qual"
+#endif
     internal = rin_icu_client_lock((rin_icu_client_t*)(void*)client, 0, NULL);
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
     if (!internal) return 0;
     result = internal->fd >= 0;
     rin_icu_client_unlock(internal);
