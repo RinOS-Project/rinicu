@@ -1927,6 +1927,38 @@ int rin_icu_time_zone_catalog(rin_icu_client_t* client, char* dest,
         out_len);
 }
 
+int rin_icu_time_zone_snapshot(rin_icu_client_t* client,
+                               const char* time_zone,
+                               uint64_t generation,
+                               char* dest, size_t dest_cap,
+                               size_t* out_len)
+{
+    RinIcuTimeZoneSnapshotRequestV1 request = {0};
+    size_t zone_len;
+    uint32_t payload_len;
+    unsigned char* payload;
+    int status;
+    if (!time_zone) return RIN_ICU_STATUS_INVALID;
+    zone_len = rin_icu_strlen_c(time_zone);
+    if (zone_len == 0u || zone_len > 127u || generation == 0u ||
+        generation == UINT64_MAX || !dest || dest_cap == 0u || !out_len)
+        return RIN_ICU_STATUS_INVALID;
+    if (rin_icu_payload_size2(sizeof(request), zone_len, &payload_len) !=
+        RIN_ICU_STATUS_OK)
+        return RIN_ICU_STATUS_TOO_LARGE;
+    payload = (unsigned char*)malloc((size_t)payload_len);
+    if (!payload) return RIN_ICU_STATUS_IO_ERROR;
+    request.time_zone_len = (uint32_t)zone_len;
+    request.generation = generation;
+    memcpy(payload, &request, sizeof(request));
+    memcpy(payload + sizeof(request), time_zone, zone_len);
+    status = rin_icu_call_text_command(
+        client, RIN_ICU_CMD_TIME_ZONE_SNAPSHOT_V1, 0u, payload,
+        payload_len, dest, dest_cap, out_len);
+    free(payload);
+    return status;
+}
+
 int rin_icu_time_zone_reload(rin_icu_client_t* client)
 {
     RinIcuMsgHeader response;
