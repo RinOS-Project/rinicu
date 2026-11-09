@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: MIT */
-#define RIN_POSIX_CLOSE_RUNTIME_IMPLEMENTATION 1
 #include "client_internal.h"
 #include "service_identity.h"
 #include "atomic_wait.h"
